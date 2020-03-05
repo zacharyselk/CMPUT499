@@ -1,0 +1,1370 @@
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/Main.cc,363
+static const char* _certified = "CORE -- CERTIFIED UNSAT";_certified66,3360
+void printStats(Solver& solver)printStats68,3420
+static Solver* solver;solver96,5483
+static void SIGINT_interrupt(int signum) { solver->interrupt(); }SIGINT_interrupt99,5696
+static void SIGINT_exit(int signum) {SIGINT_exit104,6009
+int main(int argc, char** argv)main115,6344
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/._SimpSolver.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/._SimpSolver.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/SimpSolver.h,4089
+#define Glucose_SimpSolver_hGlucose_SimpSolver_h51,3044
+namespace Glucose {Glucose57,3146
+class SimpSolver : public Solver {SimpSolver62,3269
+    virtual Clone* clone() const {clone75,3474
+    int     parsing;parsing123,5612
+    int     grow;              // Allow a variable elimination step to grow by a number of clausgrow124,5633
+    int     clause_lim;        // Variables are not eliminated if it produces a resolvent with aclause_lim125,5751
+    int     subsumption_lim;   // Do not check if subsumption against a clause larger than this.subsumption_lim127,5926
+    double  simp_garbage_frac; // A different limit for when to issue a GC during simplificationsimp_garbage_frac128,6042
+    bool    use_asymm;         // Shrink clauses by asymmetric branching.use_asymm130,6167
+    bool    use_rcheck;        // Check if a clause is already implied. Prett costly, and subsumuse_rcheck131,6241
+    bool    use_elim;          // Perform variable elimination.use_elim132,6356
+    int     merges;merges135,6446
+    int     asymm_lits;asymm_lits136,6466
+    int     eliminated_vars;eliminated_vars137,6490
+    bool                use_simplification;use_simplification138,6519
+    struct ElimLt {ElimLt144,6610
+        const vec<int>& n_occ;n_occ145,6630
+        explicit ElimLt(const vec<int>& no) : n_occ(no) {}ElimLt146,6661
+        uint64_t cost  (Var x)        const { return (uint64_t)n_occ[toInt(mkLit(x))] * (uint64_cost150,6904
+        bool operator()(Var x, Var y) const { return cost(x) < cost(y); }operator ()151,7029
+    struct ClauseDeleted {ClauseDeleted160,7354
+        const ClauseAllocator& ca;ca161,7381
+        explicit ClauseDeleted(const ClauseAllocator& _ca) : ca(_ca) {}ClauseDeleted162,7416
+        bool operator()(const CRef& cr) const { return ca[cr].mark() == 1; } };operator ()163,7488
+    int                 elimorder;elimorder167,7597
+    vec<uint32_t>       elimclauses;elimclauses168,7632
+    vec<char>           touched;touched169,7669
+                        occurs;occurs171,7746
+    vec<int>            n_occ;n_occ172,7778
+    Heap<ElimLt>        elim_heap;elim_heap173,7809
+    Queue<CRef>         subsumption_queue;subsumption_queue174,7844
+    vec<char>           frozen;frozen175,7887
+    vec<char>           eliminated;eliminated176,7919
+    int                 bwdsub_assigns;bwdsub_assigns177,7955
+    int                 n_touched;n_touched178,7995
+    CRef                bwdsub_tmpunit;bwdsub_tmpunit182,8058
+inline bool SimpSolver::isEliminated (Var v) const { return eliminated[v]; }isEliminated210,9363
+inline void SimpSolver::updateElimHeap(Var v) {updateElimHeap211,9440
+inline bool SimpSolver::addClause    (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClaaddClause218,9707
+inline bool SimpSolver::addEmptyClause()                     { add_tmp.clear(); return addClauseaddEmptyClause219,9820
+inline bool SimpSolver::addClause    (Lit p)                 { add_tmp.clear(); add_tmp.push(p);addClause220,9930
+inline bool SimpSolver::addClause    (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p);addClause221,10057
+inline bool SimpSolver::addClause    (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p);addClause222,10201
+inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (use_simplificatisetFrozen223,10362
+inline bool SimpSolver::solve        (                     bool do_simp, bool turn_off_simp)  { solve225,10494
+inline bool SimpSolver::solve        (Lit p       ,        bool do_simp, bool turn_off_simp)  { solve226,10675
+inline bool SimpSolver::solve        (Lit p, Lit q,        bool do_simp, bool turn_off_simp)  { solve227,10877
+inline bool SimpSolver::solve        (Lit p, Lit q, Lit r, bool do_simp, bool turn_off_simp)  { solve228,11100
+inline bool SimpSolver::solve        (const vec<Lit>& assumps, bool do_simp, bool turn_off_simp)solve229,11344
+inline lbool SimpSolver::solveLimited (const vec<Lit>& assumps, bool do_simp, bool turn_off_simpsolveLimited232,11541
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/Makefile,92
+EXEC = glucoseEXEC1,0
+DEPDIR    = mtl utils coreDEPDIR2,15
+MROOT = $(PWD)/..MROOT3,42
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/SimpSolver.cc,2663
+static const char* _cat = "SIMP";_cat60,3233
+static BoolOption   opt_use_asymm        (_cat, "asymm",        "Shrink clauses by asymmetric bropt_use_asymm62,3268
+static BoolOption   opt_use_rcheck       (_cat, "rcheck",       "Check if a clause is already imopt_use_rcheck63,3383
+static BoolOption   opt_use_elim         (_cat, "elim",         "Perform variable elimination.",opt_use_elim64,3505
+static IntOption    opt_grow             (_cat, "grow",         "Allow a variable elimination stopt_grow65,3609
+static IntOption    opt_clause_lim       (_cat, "cl-lim",       "Variables are not eliminated ifopt_clause_lim66,3746
+static IntOption    opt_subsumption_lim  (_cat, "sub-lim",      "Do not check if subsumption agaopt_subsumption_lim67,3951
+static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of wasted memory aopt_simp_garbage_frac68,4132
+SimpSolver::SimpSolver() :SimpSolver75,4479
+SimpSolver::~SimpSolver()~SimpSolver101,5291
+SimpSolver::SimpSolver(const SimpSolver &s) : Solver(s)SimpSolver107,5324
+Var SimpSolver::newVar(bool sign, bool dvar) {newVar152,6773
+lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)solve_166,7123
+lbool SimpSolver::solve_proof_tree(bool do_simp, bool turn_off_simp, int proof_depth)solve_proof_tree206,8227
+bool SimpSolver::addClause_(vec<Lit>& ps)addClause_249,9361
+void SimpSolver::removeClause(CRef cr,bool inPurgatory)removeClause303,10975
+bool SimpSolver::strengthenClause(CRef cr, Lit l)strengthenClause318,11304
+bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, vec<Lit>& out_clause)merge374,13037
+bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, int& size)merge405,13865
+void SimpSolver::gatherTouchedClauses()gatherTouchedClauses434,14603
+bool SimpSolver::implied(const vec<Lit>& c)implied462,15369
+bool SimpSolver::backwardSubsumptionCheck(bool verbose)backwardSubsumptionCheck483,15894
+bool SimpSolver::asymm(Var v, CRef cr)asymm550,18258
+bool SimpSolver::asymmVar(Var v)asymmVar577,18831
+static void mkElimClause(vec<uint32_t>& elimclauses, Lit x)mkElimClause594,19157
+static void mkElimClause(vec<uint32_t>& elimclauses, Var v, Clause& c)mkElimClause601,19280
+bool SimpSolver::eliminateVar(Var v)eliminateVar627,20000
+bool SimpSolver::substitute(Var v, Lit x)substitute689,22016
+void SimpSolver::extendModel()extendModel723,22699
+bool SimpSolver::eliminate(bool turn_off_elim)eliminate742,23096
+void SimpSolver::cleanUpClauses()cleanUpClauses839,26415
+void SimpSolver::relocAll(ClauseAllocator& to)relocAll854,26775
+void SimpSolver::garbageCollect()garbageCollect877,27255
+
+/home/zach/school/cmput499/glucose-syrup-4.1/simp/._Main.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._IntTypes.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Vec.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Sort.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Heap.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Clone.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Alloc.h,1751
+#define Glucose_Alloc_hGlucose_Alloc_h22,1292
+namespace Glucose {Glucose27,1363
+class RegionAllocatorRegionAllocator33,1544
+    T*        memory;memory35,1568
+    uint32_t  sz;sz36,1590
+    uint32_t  cap;cap37,1608
+    uint32_t  wasted_;wasted_38,1627
+    typedef uint32_t Ref;Ref44,1755
+    enum { Ref_Undef = UINT32_MAX };__anon4800dbc4010345,1781
+    enum { Ref_Undef = UINT32_MAX };Ref_Undef45,1781
+    enum { Unit_Size = sizeof(uint32_t) };__anon4800dbc4020346,1818
+    enum { Unit_Size = sizeof(uint32_t) };Unit_Size46,1818
+    explicit RegionAllocator(uint32_t start_cap = 1024*1024) : memory(NULL), sz(0), cap(0), wastRegionAllocator48,1862
+    ~RegionAllocator()~RegionAllocator49,1989
+    uint32_t size      () const      { return sz; }size56,2082
+    uint32_t getCap    () const      { return cap;}getCap57,2134
+    uint32_t wasted    () const      { return wasted_; }wasted58,2186
+    void     free      (int size)    { wasted_ += size; }free61,2280
+    T&       operator[](Ref r)       { assert(r >= 0 && r < sz); return memory[r]; }operator []64,2405
+    const T& operator[](Ref r) const { assert(r >= 0 && r < sz); return memory[r]; }operator []65,2490
+    T*       lea       (Ref r)       { assert(r >= 0 && r < sz); return &memory[r]; }lea67,2576
+    const T* lea       (Ref r) const { assert(r >= 0 && r < sz); return &memory[r]; }lea68,2662
+    Ref      ael       (const T* t)  { assert((void*)t >= (void*)&memory[0] && (void*)t < (void*ael69,2748
+    void     moveTo(RegionAllocator& to) {moveTo72,2903
+    void copyTo(RegionAllocator& to) const {copyTo83,3159
+void RegionAllocator<T>::capacity(uint32_t min_cap)capacity97,3475
+RegionAllocator<T>::alloc(int size)alloc121,4339
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/config.mk,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Alg.h,443
+#define Glucose_Alg_hGlucose_Alg_h22,1343
+namespace Glucose {Glucose26,1388
+static inline void remove(V& ts, const T& t)remove36,1723
+static inline bool find(V& ts, const T& t)find47,1953
+static inline void copy(const T& from, T& to)copy61,2282
+static inline void copy(const vec<T>& from, vec<T>& to, bool append = false)copy68,2385
+static inline void append(const vec<T>& from, vec<T>& to){ copy(from, to, true); }append79,2624
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Queue.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Map.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._XAlloc.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Queue.h,1060
+#define Glucose_Queue_hGlucose_Queue_h22,1345
+namespace Glucose {Glucose26,1392
+class Queue {Queue31,1532
+    vec<T>  buf;buf32,1546
+    int     first;first33,1563
+    int     end;end34,1582
+    typedef T Key;Key37,1608
+    Queue() : buf(1), first(0), end(0) {}Queue39,1628
+    void clear (bool dealloc = false) { buf.clear(dealloc); buf.growTo(1); first = end = 0; }clear41,1671
+    int  size  () const { return (end >= first) ? end - first : end - first + buf.size(); }size42,1765
+    const T& operator [] (int index) const  { assert(index >= 0); assert(index < size()); returnoperator [] 46,1868
+    T&       operator [] (int index)        { assert(index >= 0); assert(index < size()); returnoperator [] 47,2002
+    T    peek  () const { assert(first != end); return buf[first]; }peek49,2137
+    void pop   () { assert(first != end); first++; if (first == buf.size()) first = 0; }pop50,2206
+    void copyTo(Queue<T>& copy) const {copyTo53,2305
+    void insert(T elem) {   // INVARIANT: buf[end] is always unusedinsert60,2446
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/XAlloc.h,215
+#define Glucose_XAlloc_hGlucose_XAlloc_h22,1293
+namespace Glucose {Glucose28,1378
+class OutOfMemoryException{};OutOfMemoryException33,1600
+static inline void* xrealloc(void *ptr, size_t size)xrealloc34,1630
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Alg.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/VecThreads.h,3114
+#define Glucose_VecThreads_hGlucose_VecThreads_h23,1442
+namespace Glucose {Glucose32,1578
+class vecThreads {vecThreads40,1850
+    T*  data;data41,1869
+    int sz;sz42,1883
+    int cap;cap43,1895
+    bool lock;lock44,1908
+    int nbusers;nbusers45,1923
+    vecThreads<T>&  operator = (vecThreads<T>& other) { assert(0); return *this; }operator =48,1983
+             vecThreads        (vecThreads<T>& other) { assert(0); }vecThreads49,2066
+    static inline int  imax   (int x, int y) { int mask = (y-x) >> (sizeof(int)*8-1); return (x&imax52,2195
+    static inline void nextCap(int& cap){ cap += ((cap >> 1) + 2) & ~1; }nextCap54,2390
+    vecThreads()                       : data(NULL) , sz(0)   , cap(0), lock(false), nbusers(0) vecThreads58,2494
+    explicit vecThreads(int size)      : data(NULL) , sz(0)   , cap(0), lock(false), nbusers(0) vecThreads59,2597
+    vecThreads(int size, const T& pad) : data(NULL) , sz(0)   , cap(0),  lock(false), nbusers(0)vecThreads60,2714
+   ~vecThreads()                                                          { clear(true); }~vecThreads61,2836
+    operator T*       (void)           { return data; }operator T*64,2961
+    int      size     (void) const     { return sz; }size67,3042
+    void     shrink   (int nelems)     { assert(nelems <= sz); for (int i = 0; i < nelems; i++) shrink68,3096
+    void     shrink_  (int nelems)     { assert(nelems <= sz); sz -= nelems; }shrink_69,3215
+    int      capacity (void) const     { return cap; }capacity70,3294
+    void     push  (void)              { if (sz == cap) capacity(sz+1); new (&data[sz]) T(); sz+push78,3585
+    void     push  (const T& elem)     { if (sz == cap) capacity(sz+1); data[sz++] = elem; }push79,3686
+    void     push_ (const T& elem)     { assert(sz < cap); data[sz++] = elem; }push_80,3779
+    void     pop   (void)              { assert(sz > 0); sz--, data[sz].~T(); }pop81,3859
+    void     remove(const T &elem) {remove88,4059
+    const T& last  (void) const        { return data[sz-1]; }last107,4690
+    T&       last  (void)              { return data[sz-1]; }last108,4752
+    const T& operator [] (int index) const { return data[index]; }operator [] 111,4840
+    T&       operator [] (int index)       { return data[index]; }operator [] 112,4907
+    void copyTo(vecThreads<T>& copy) const { copy.clear(); copy.growTo(sz); copyTo115,5017
+    void moveTo(vecThreads<T>& dest) { moveTo117,5167
+    void memCopyTo(vecThreads<T>& copy) const{memCopyTo123,5417
+void vecThreads<T>::startLoop() {startLoop132,5589
+void vecThreads<T>::endLoop() {endLoop142,5811
+inline void vecThreads<T>::startMaintenance() {startMaintenance149,5959
+inline void vecThreads<T>::endMaintenance() {endMaintenance159,6195
+inline void vecThreads<T>::capacityProtected(int min_cap) {capacityProtected165,6356
+void vecThreads<T>::capacity(int min_cap) {capacity172,6497
+void vecThreads<T>::growTo(int size, const T& pad) {growTo183,6858
+void vecThreads<T>::growTo(int size) {growTo194,7094
+void vecThreads<T>::clear(bool dealloc) {clear205,7321
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._template.mk,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Vec.h,2617
+#define Glucose_Vec_hGlucose_Vec_h22,1343
+namespace Glucose {Glucose31,1472
+class vec {vec39,1744
+    T*  data;data40,1756
+    int sz;sz41,1770
+    int cap;cap42,1782
+    vec<T>&  operator = (vec<T>& other) { assert(0); return *this; }operator =45,1838
+             vec        (vec<T>& other) { assert(0); }vec46,1907
+    static inline int  imax   (int x, int y) { int mask = (y-x) >> (sizeof(int)*8-1); return (x&imax49,2022
+    static inline void nextCap(int& cap){ cap += ((cap >> 1) + 2) & ~1; }nextCap51,2217
+    vec()                       : data(NULL) , sz(0)   , cap(0)    { }vec55,2321
+    explicit vec(int size)      : data(NULL) , sz(0)   , cap(0)    { growTo(size); }vec56,2392
+    vec(int size, const T& pad) : data(NULL) , sz(0)   , cap(0)    { growTo(size, pad); }vec57,2477
+   ~vec()                                                          { clear(true); }~vec58,2567
+    operator T*       (void)           { return data; }operator T*61,2685
+    int      size     (void) const     { return sz; }size64,2766
+    void     shrink   (int nelems)     { assert(nelems <= sz); for (int i = 0; i < nelems; i++) shrink65,2820
+    void     shrink_  (int nelems)     { assert(nelems <= sz); sz -= nelems; }shrink_66,2939
+    int      capacity (void) const     { return cap; }capacity67,3018
+    void     push  (void)              { if (sz == cap) capacity(sz+1); new (&data[sz]) T(); sz+push74,3263
+    void     push  (const T& elem)     { if (sz == cap) capacity(sz+1); data[sz++] = elem; }push75,3364
+    void     push_ (const T& elem)     { assert(sz < cap); data[sz++] = elem; }push_76,3457
+    void     pop   (void)              { assert(sz > 0); sz--, data[sz].~T(); }pop77,3537
+    void     remove(const T &elem) {remove79,3622
+    const T& last  (void) const        { return data[sz-1]; }last98,4253
+    T&       last  (void)              { return data[sz-1]; }last99,4315
+    const T& operator [] (int index) const { return data[index]; }operator [] 102,4403
+    T&       operator [] (int index)       { return data[index]; }operator [] 103,4470
+    void copyTo(vec<T>& copy) const { copy.clear(); copy.growTo(sz); for (int i = 0; i < sz; i++copyTo106,4580
+    void moveTo(vec<T>& dest) { dest.clear(true); dest.data = data; dest.sz = sz; dest.cap = capmoveTo107,4699
+    void memCopyTo(vec<T>& copy) const{memCopyTo108,4829
+void vec<T>::capacity(int min_cap) {capacity118,4995
+void vec<T>::growTo(int size, const T& pad) {growTo127,5347
+void vec<T>::growTo(int size) {growTo135,5529
+void vec<T>::clear(bool dealloc) {clear143,5702
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Heap.h,1579
+#define Glucose_Heap_hGlucose_Heap_h22,1344
+namespace Glucose {Glucose26,1390
+class Heap {Heap33,1599
+    Comp     lt;       // The heap is a minimum-heap with respect to this comparatorlt34,1612
+    vec<int> heap;     // Heap of integersheap35,1697
+    vec<int> indices;  // Each integers position (index) in the Heapindices36,1740
+    static inline int left  (int i) { return i*2+1; }left39,1845
+    static inline int right (int i) { return (i+1)*2; }right40,1899
+    static inline int parent(int i) { return (i-1) >> 1; }parent41,1955
+    void percolateUp(int i)percolateUp45,2017
+    void percolateDown(int i)percolateDown61,2372
+    Heap(const Comp& c) : lt(c) { }Heap77,2814
+    int  size      ()          const { return heap.size(); }size79,2851
+    bool empty     ()          const { return heap.size() == 0; }empty80,2912
+    bool inHeap    (int n)     const { return n < indices.size() && indices[n] >= 0; }inHeap81,2978
+    int  operator[](int index) const { assert(index < heap.size()); return heap[index]; }operator []82,3065
+    void decrease  (int n) { assert(inHeap(n)); percolateUp  (indices[n]); }decrease85,3157
+    void increase  (int n) { assert(inHeap(n)); percolateDown(indices[n]); }increase86,3234
+    void copyTo(Heap& copy) const {heap.copyTo(copy.heap);indices.copyTo(copy.indices);}copyTo88,3312
+    void update(int n)update91,3451
+    void insert(int n)insert101,3628
+    int  removeMin()removeMin112,3817
+    void build(vec<int>& ns) {build125,4141
+    void clear(bool dealloc = false) clear138,4478
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._VecThreads.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/IntTypes.h,116
+#define Glucose_IntTypes_hGlucose_IntTypes_h21,1294
+#define PRIu64 PRIu6441,1670
+#define PRIi64 PRIi6442,1690
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Clone.h,107
+#define Glucose_Clone_hGlucose_Clone_h2,24
+namespace Glucose {Glucose5,50
+    class Clone {Clone7,71
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Sort.h,647
+#define Glucose_Sort_hGlucose_Sort_h22,1344
+namespace Glucose {Glucose30,1529
+struct LessThan_default {LessThan_default33,1568
+    bool operator () (T x, T y) { return x < y; }operator () 34,1594
+void selectionSort(T* array, int size, LessThan lt)selectionSort39,1684
+template <class T> static inline void selectionSort(T* array, int size) {selectionSort53,2036
+void sort(T* array, int size, LessThan lt)sort57,2203
+template <class T> static inline void sort(T* array, int size) {sort81,2752
+template <class T, class LessThan> void sort(vec<T>& v, LessThan lt) {sort89,2984
+template <class T> void sort(vec<T>& v) {sort91,3088
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/Map.h,3212
+#define Glucose_Map_hGlucose_Map_h21,1289
+namespace Glucose {Glucose28,1403
+static inline uint32_t hash(std::string x) {std::hash<std::string> hasher;return hasher(x); }hash34,1561
+template<class K> struct Hash  { uint32_t operator()(const K& k)               const { return haHash36,1656
+template<class K> struct Hash  { uint32_t operator()(const K& k)               const { return haoperator ()36,1656
+template<class K> struct Equal { bool     operator()(const K& k1, const K& k2) const { return k1Equal37,1765
+template<class K> struct Equal { bool     operator()(const K& k1, const K& k2) const { return k1operator ()37,1765
+template<class K> struct DeepHash  { uint32_t operator()(const K* k)               const { returDeepHash39,1875
+template<class K> struct DeepHash  { uint32_t operator()(const K* k)               const { returoperator ()39,1875
+template<class K> struct DeepEqual { bool     operator()(const K* k1, const K* k2) const { returDeepEqual40,1989
+template<class K> struct DeepEqual { bool     operator()(const K* k1, const K* k2) const { returoperator ()40,1989
+static inline uint32_t hash(uint32_t x){ return x; }hash42,2105
+static inline uint32_t hash(uint64_t x){ return (uint32_t)x; }hash43,2158
+static inline uint32_t hash(int32_t x) { return (uint32_t)x; }hash44,2221
+static inline uint32_t hash(int64_t x) { return (uint32_t)x; }hash45,2284
+static const int nprimes          = 25;nprimes52,2468
+static const int primes [nprimes] = { 31, 73, 151, 313, 643, 1291, 2593, 5233, 10501, 21013, 420primes53,2508
+class Map {Map60,2950
+    struct Pair { K key; D data; };Pair62,2971
+    struct Pair { K key; D data; };key62,2971
+    struct Pair { K key; D data; };data62,2971
+    H          hash;hash65,3018
+    E          equals;equals66,3039
+    vec<Pair>* table;table68,3063
+    int        cap;cap69,3085
+    int        size;size70,3105
+    Map<K,D,H,E>&  operator = (Map<K,D,H,E>& other) { assert(0); }operator =73,3169
+                   Map        (Map<K,D,H,E>& other) { assert(0); }Map74,3236
+    bool    checkCap(int new_size) const { return new_size > cap; }checkCap76,3304
+    int32_t index  (const K& k) const { return hash(k) % cap; }index78,3373
+    void   _insert (const K& k, const D& d) { _insert79,3437
+    void    rehash () {rehash83,3586
+    Map () : table(NULL), cap(0), size(0) {}Map106,4147
+    Map (const H& h, const E& e) : hash(h), equals(e), table(NULL), cap(0), size(0){}Map107,4192
+    ~Map () { delete [] table; }~Map108,4278
+    const D& operator [] (const K& k) constoperator [] 111,4372
+    D& operator [] (const K& k)operator [] 125,4818
+    void insert (const K& k, const D& d) { if (checkCap(size+1)) rehash(); _insert(k, d); size++insert140,5239
+    bool peek   (const K& k, D& d) const {peek141,5339
+    bool has   (const K& k) const {has151,5642
+    void remove(const K& k) {remove161,5954
+    void clear  () {clear172,6235
+    int  elems() const { return size; }elems178,6334
+    int  bucket_count() const { return cap; }bucket_count179,6374
+    void moveTo(Map& other){moveTo182,6494
+    const vec<Pair>& bucket(int i) const { return table[i]; }bucket194,6781
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/template.mk,3166
+PWD        = $(shell pwd)PWD8,324
+EXEC      ?= $(notdir $(PWD))EXEC9,350
+CSRCS      = $(wildcard $(PWD)/*.cc) CSRCS11,381
+DSRCS      = $(foreach dir, $(DEPDIR), $(filter-out $(MROOT)/$(dir)/Main.cc, $(wildcard $(MROOT)DSRCS12,419
+CHDRS      = $(wildcard $(PWD)/*.h)CHDRS13,531
+COBJS      = $(CSRCS:.cc=.o) $(DSRCS:.cc=.o)COBJS14,567
+PCOBJS     = $(addsuffix p,  $(COBJS))PCOBJS16,613
+DCOBJS     = $(addsuffix d,  $(COBJS))DCOBJS17,652
+RCOBJS     = $(addsuffix r,  $(COBJS))RCOBJS18,691
+CXX       ?= g++CXX20,731
+LFLAGS    ?= -Wall -lpthread LFLAGS22,795
+COPTIMIZE ?= -O3COPTIMIZE24,826
+s:	$(EXEC)s31,961
+p:	$(EXEC)_profilep32,972
+d:	$(EXEC)_debugd33,991
+r:	$(EXEC)_releaser34,1008
+rs:	$(EXEC)_staticrs35,1027
+libs:	lib$(LIB)_standard.alibs37,1047
+libp:	lib$(LIB)_profile.alibp38,1074
+libd:	lib$(LIB)_debug.alibd39,1100
+libr:	lib$(LIB)_release.alibr40,1124
+%.o:			CFLAGS +=$(COPTIMIZE) -g -D DEBUG%.o43,1170
+%.op:			CFLAGS +=$(COPTIMIZE) -pg -g -D NDEBUG%.op44,1211
+%.od:			CFLAGS +=-O0 -g -D DEBUG%.od45,1258
+%.or:			CFLAGS +=$(COPTIMIZE) -g -D NDEBUG%.or46,1291
+$(EXEC):		LFLAGS += -g$(EXEC)49,1351
+$(EXEC)_profile:	LFLAGS += -g -pg$(EXEC)_profile50,1374
+$(EXEC)_debug:		LFLAGS += -g$(EXEC)_debug51,1408
+$(EXEC)_static:		LFLAGS += --static$(EXEC)_static53,1469
+$(EXEC):		$(COBJS)$(EXEC)56,1522
+$(EXEC)_profile:	$(PCOBJS)$(EXEC)_profile57,1541
+$(EXEC)_debug:		$(DCOBJS)$(EXEC)_debug58,1568
+$(EXEC)_release:	$(RCOBJS)$(EXEC)_release59,1594
+$(EXEC)_static:		$(RCOBJS)$(EXEC)_static60,1621
+lib$(LIB)_standard.a:	$(filter-out */Main.o,  $(COBJS))lib$(LIB)_standard.a62,1649
+lib$(LIB)_profile.a:	$(filter-out */Main.op, $(PCOBJS))lib$(LIB)_profile.a63,1705
+lib$(LIB)_debug.a:	$(filter-out */Main.od, $(DCOBJS))lib$(LIB)_debug.a64,1761
+lib$(LIB)_release.a:	$(filter-out */Main.or, $(RCOBJS))lib$(LIB)_release.a65,1815
+%.o %.op %.od %.or:	%.cc%.o69,1887
+%.o %.op %.od %.or:	%.cc%.op69,1887
+%.o %.op %.od %.or:	%.cc%.od69,1887
+%.o %.op %.od %.or:	%.cc%.or69,1887
+$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:$(EXEC)74,2035
+$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:$(EXEC)_profile74,2035
+$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:$(EXEC)_debug74,2035
+$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:$(EXEC)_release74,2035
+$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:$(EXEC)_static74,2035
+lib$(LIB)_standard.a lib$(LIB)_profile.a lib$(LIB)_release.a lib$(LIB)_debug.a:lib$(LIB)_standard.a79,2248
+lib$(LIB)_standard.a lib$(LIB)_profile.a lib$(LIB)_release.a lib$(LIB)_debug.a:lib$(LIB)_profile.a79,2248
+lib$(LIB)_standard.a lib$(LIB)_profile.a lib$(LIB)_release.a lib$(LIB)_debug.a:lib$(LIB)_release.a79,2248
+lib$(LIB)_standard.a lib$(LIB)_profile.a lib$(LIB)_release.a lib$(LIB)_debug.a:lib$(LIB)_debug.a79,2248
+libs libp libd libr:libs84,2447
+libs libp libd libr:libp84,2447
+libs libp libd libr:libd84,2447
+libs libp libd libr:libr84,2447
+allclean: cleanallclean89,2552
+clean:clean92,2655
+depend.mk: $(CSRCS) $(CHDRS)depend.mk97,2822
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._Alloc.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/mtl/._config.mk,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/Main.cc,151
+static MultiSolvers* pmsolver;pmsolver70,3339
+static void SIGINT_exit(int signum) {SIGINT_exit80,3879
+int main(int argc, char** argv)main92,4227
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/SolverCompanion.h,198
+#define SolverCompanion_hSolverCompanion_h57,3304
+namespace Glucose {Glucose59,3351
+class SolverCompanion {SolverCompanion63,3407
+	vec<ParallelSolver*> watchedSolvers; watchedSolvers75,3750
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._SolverConfiguration.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/ClausesBuffer.cc,957
+ClausesBuffer::ClausesBuffer(int _nbThreads, unsigned int _maxsize) : first(0), last(_maxsize-1)ClausesBuffer84,4410
+ClausesBuffer::ClausesBuffer() : first(0), last(0), maxsize(0), queuesize(0), removedClauses(0),ClausesBuffer94,4833
+void ClausesBuffer::setNbThreads(int _nbThreads) {setNbThreads97,5087
+uint32_t ClausesBuffer::getCap() {getCap107,5399
+inline unsigned int ClausesBuffer::nextIndex(unsigned int i) {nextIndex110,5465
+inline unsigned int ClausesBuffer::addIndex(unsigned int i, unsigned int a) {addIndex117,5587
+void ClausesBuffer::removeLastClause() {removeLastClause124,5737
+inline void ClausesBuffer::noCheckPush(uint32_t x) {noCheckPush151,6440
+inline uint32_t ClausesBuffer::noCheckPop(uint32_t & index) {noCheckPop157,6584
+bool ClausesBuffer::pushClause(int threadId, Clause & c) {pushClause166,6781
+bool ClausesBuffer::getClause(int threadId, int & threadOrigin, vec<Lit> & resultClause,  bool fgetClause184,7409
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/MultiSolvers.cc,2140
+static IntOption opt_nbsolversmultithreads(_parallel, "nthreads", "Number of core threads for syopt_nbsolversmultithreads64,3360
+static IntOption opt_maxnbsolvers(_parallel, "maxnbthreads", "Maximum number of core threads to opt_maxnbsolvers65,3484
+static IntOption opt_maxmemory(_parallel, "maxmemory", "Maximum memory to use (in Mb, 0 for no sopt_maxmemory66,3613
+static IntOption opt_statsInterval(_parallel, "statsinterval", "Seconds (real time) between two opt_statsInterval67,3734
+BoolOption opt_whenFullRemoveOlder(_parallel, "removeolder", "When the FIFO for exchanging clausopt_whenFullRemoveOlder70,3885
+IntOption opt_fifoSizeByCore(_parallel, "fifosize", "Size of the FIFO structure for exchanging copt_fifoSizeByCore71,4040
+BoolOption opt_dontExportDirectReusedClauses(_cunstable, "reusedClauses", "Don't export directlyopt_dontExportDirectReusedClauses74,4219
+BoolOption opt_plingeling(_cunstable, "plingeling", "plingeling strategy for sharing clauses (exopt_plingeling75,4341
+static inline double cpuTime(void) {cpuTime82,4537
+void MultiSolvers::informEnd(lbool res) {informEnd89,4714
+MultiSolvers::MultiSolvers(ParallelSolver *s) :MultiSolvers95,4818
+MultiSolvers::MultiSolvers() : MultiSolvers(new ParallelSolver(-1)) {MultiSolvers124,6242
+MultiSolvers::~MultiSolvers() { }~MultiSolvers129,6317
+void MultiSolvers::generateAllSolvers() {generateAllSolvers136,6386
+ParallelSolver *MultiSolvers::retrieveSolver(int i) {retrieveSolver161,7018
+Var MultiSolvers::newVar(bool sign, bool dvar) {newVar166,7110
+bool MultiSolvers::addClause_(vec<Lit> &ps) {addClause_183,7576
+bool MultiSolvers::simplify() {simplify233,9287
+bool MultiSolvers::eliminate() {eliminate241,9459
+void *localLaunch(void *arg) {localLaunch255,9810
+#define MAXIMUM_SLEEP_DURATION MAXIMUM_SLEEP_DURATION264,9942
+void MultiSolvers::printStats() {printStats267,9977
+void MultiSolvers::printFinalStats() {printFinalStats298,11225
+void MultiSolvers::adjustParameters() {adjustParameters581,19957
+void MultiSolvers::adjustNumberOfCores() {adjustNumberOfCores586,20054
+lbool MultiSolvers::solve() {solve604,20834
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._SharedCompanion.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/ParallelSolver.cc,1653
+const char* _cunstable = "CORE/PARALLEL -- UNSTABLE FEATURES";_cunstable58,3193
+const char* _parallel = "PARALLEL";_parallel59,3256
+ParallelSolver::ParallelSolver(int threadId) :ParallelSolver69,3718
+ParallelSolver::~ParallelSolver() {~ParallelSolver92,4624
+ParallelSolver::ParallelSolver(const ParallelSolver &s) : ParallelSolver97,4734
+struct reduceDB_oneWatched_lt {reduceDB_oneWatched_lt121,5943
+    ClauseAllocator& ca;ca122,5975
+    reduceDB_oneWatched_lt(ClauseAllocator& ca_) : ca(ca_) {reduceDB_oneWatched_lt124,6001
+    bool operator()(CRef x, CRef y) {operator ()127,6069
+void ParallelSolver::reduceDB() {reduceDB151,6912
+void ParallelSolver::parallelImportClauseDuringConflictAnalysis(Clause &c,CRef confl) {parallelImportClauseDuringConflictAnalysis241,10177
+void ParallelSolver::reportProgress() {reportProgress259,10969
+void ParallelSolver::reportProgressArrayImports(vec<unsigned int> &totalColumns) {reportProgressArrayImports265,11616
+bool ParallelSolver::shareClause(Clause & c) {shareClause290,12435
+bool ParallelSolver::panicModeIsEnabled() {panicModeIsEnabled305,12901
+void ParallelSolver::parallelImportUnaryClauses() {parallelImportUnaryClauses317,13299
+bool ParallelSolver::parallelImportClauses() {parallelImportClauses336,13898
+void ParallelSolver::parallelExportUnaryClause(Lit p) {parallelExportUnaryClause392,16260
+void ParallelSolver::parallelExportClauseDuringSearch(Clause &c) {parallelExportClauseDuringSearch409,16837
+bool ParallelSolver::parallelJobIsFinished() { parallelJobIsFinished431,17608
+lbool ParallelSolver::solve_(bool do_simp, bool turn_off_simp) {solve_437,17764
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/ClausesBuffer.h,1220
+#define ClausesBuffer_hClausesBuffer_h51,3043
+namespace Glucose {Glucose59,3246
+    class ClausesBuffer {ClausesBuffer64,3402
+	vec<uint32_t>  elems;elems65,3428
+	unsigned int     first;first66,3451
+	unsigned int	 last;last67,3476
+	unsigned int     maxsize;maxsize68,3497
+	unsigned int     queuesize; // Number of current elements (must be < maxsize !)queuesize69,3524
+	unsigned int     removedClauses;removedClauses70,3605
+	unsigned int     forcedRemovedClauses;forcedRemovedClauses71,3639
+        static const int  headerSize = 3;headerSize72,3679
+	int       nbThreads;nbThreads73,3721
+	bool      whenFullRemoveOlder;whenFullRemoveOlder74,3743
+	unsigned int fifoSizeByCore;fifoSizeByCore75,3775
+	vec<unsigned int> lastOfThread; // Last value for a thread lastOfThread76,3805
+	int maxSize() const {return maxsize;}maxSize94,4406
+	void growTo(int size) {growTo96,4472
+	void fastclear() {first = 0; last = 0; queuesize=0; } fastclear103,4693
+	int  size(void)    { return queuesize; }size105,4750
+	void clear(bool dealloc = false)   { elems.clear(dealloc); first = 0; maxsize=0; queuesize=0;}clear107,4793
+	inline  int  toInt     (Lit p)              { return p.x; } toInt108,4889
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/SharedCompanion.cc,819
+SharedCompanion::SharedCompanion(int _nbThreads) :SharedCompanion59,3215
+void SharedCompanion::setNbThreads(int _nbThreads) {setNbThreads78,4060
+void SharedCompanion::printStats() {printStats83,4187
+bool SharedCompanion::addSolver(ParallelSolver* s) {addSolver87,4250
+void SharedCompanion::newVar(bool sign) {newVar96,4571
+void SharedCompanion::addLearnt(ParallelSolver *s,Lit unary) {addLearnt100,4643
+Lit SharedCompanion::getUnary(ParallelSolver *s) {getUnary109,4935
+bool SharedCompanion::addLearnt(ParallelSolver *s, Clause & c) { addLearnt123,5366
+bool SharedCompanion::getNewClause(ParallelSolver *s, int & threadOrigin, vec<Lit>& newclause) {getNewClause135,5702
+bool SharedCompanion::jobFinished() {jobFinished146,6118
+bool SharedCompanion::IFinished(ParallelSolver *s) {IFinished154,6309
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._ClausesBuffer.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/SolverConfiguration.cc,411
+void SolverConfiguration::configure(MultiSolvers *ms, int nbsolvers) {configure58,3251
+void SolverConfiguration::configureSAT15Adapt(MultiSolvers *ms, int nbsolvers) {configureSAT15Adapt74,4002
+void SolverConfiguration::configureSAT15Default(MultiSolvers *ms, int nbsolvers) {configureSAT15Default88,4641
+void SolverConfiguration::configureSAT14(MultiSolvers *ms, int nbsolvers) {configureSAT14102,5033
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._ParallelSolver.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._ParallelSolver.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._SolverCompanion.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._SolverCompanion.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._SolverConfiguration.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/MultiSolvers.h,5222
+#define MultiSolvers_hMultiSolvers_h51,3040
+namespace Glucose {Glucose55,3102
+class MultiSolvers {MultiSolvers58,3158
+  void setShowModel(int i) {showModel = i;}setShowModel71,3412
+  int getShowModel() {return showModel;}getShowModel72,3456
+  void interrupt() {}interrupt93,4393
+  vec<lbool> model;             // If problem is satisfiable, this vector contains the model (ifmodel94,4415
+  inline bool okay() {okay95,4518
+  bool use_simplification;use_simplification107,4717
+struct Stats {Stats114,4823
+    uint64_t min, max, avg, std, med;min115,4838
+    uint64_t min, max, avg, std, med;max115,4838
+    uint64_t min, max, avg, std, med;avg115,4838
+    uint64_t min, max, avg, std, med;std115,4838
+    uint64_t min, max, avg, std, med;med115,4838
+    Stats(uint64_t _min = 0,uint64_t _max = 0,uint64_t  _avg = 0,uint64_t  _std = 0,uint64_t  _mStats116,4876
+	int ok;ok121,5067
+	lbool result;result122,5076
+	int maxnbthreads; // Maximal number of threadsmaxnbthreads123,5091
+	int nbthreads; // Current number of threadsnbthreads124,5139
+	int nbsolvers; // Number of CDCL solversnbsolvers125,5184
+	int nbcompanions; // Number of companionsnbcompanions126,5226
+	int nbcompbysolver; // Number of companions by solversnbcompbysolver127,5269
+	bool immediateSharingGlue ;immediateSharingGlue128,5325
+	int allClonesAreBuilt;allClonesAreBuilt129,5354
+        bool showModel; // show model on/offshowModel130,5378
+	int winner;winner132,5424
+    vec<Lit>            add_tmp;add_tmp134,5438
+    double    var_decay;          // Inverse of the variable activity decay factor.             var_decay136,5474
+    double    clause_decay;       // Inverse of the clause activity decay factor.               clause_decay137,5620
+    double    cla_inc;          // Amount to bump next clause with.cla_inc138,5759
+    double    var_inc;          // Amount to bump next variable with.	var_inc139,5827
+    double    random_var_freq;    // The frequency with which the decision heuristic tries to chrandom_var_freq140,5898
+    int       restart_first;      // The initial restart limit.                                 restart_first141,6040
+    double    restart_inc;        // The factor with which the restart limit is multiplied in earestart_inc142,6181
+    double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the orlearntsize_factor143,6322
+    double    learntsize_inc;     // The limit for learnt clauses is multiplied with this factorlearntsize_inc144,6465
+    bool      expensive_ccmin;    // Controls conflict clause minimization.                     expensive_ccmin145,6606
+    int       polarity_mode;      // Controls which polarity the decision heuristic chooses. Seepolarity_mode146,6748
+    unsigned int maxmemory;maxmemory147,6900
+    unsigned int maxnbsolvers;maxnbsolvers148,6928
+    int verb; verb149,6959
+    int verbEveryConflicts;verbEveryConflicts150,6974
+    int numvar; // Number of variablesnumvar151,7002
+    int numclauses; // Number of clausesnumclauses152,7041
+    enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3 };__anon120111320103154,7083
+    enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3 };polarity_true154,7083
+    enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3 };polarity_false154,7083
+    enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3 };polarity_user154,7083
+    enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3 };polarity_rnd154,7083
+   SharedCompanion * sharedcomp;sharedcomp157,7202
+    pthread_mutex_t m; // mutex for any high level sync between all threads (like reportf)m162,7311
+    pthread_mutex_t mfinished; // mutex on which main process may wait for... As soon as one promfinished163,7402
+    pthread_cond_t cfinished; // condition variable that says that a thread has finishedcfinished164,7533
+    vec<ParallelSolver*> solvers; // set of plain solverssolvers166,7624
+    vec<SolverCompanion*> solvercompanions; // set of companion solverssolvercompanions167,7682
+    vec<pthread_t*> threads; // all threads of this processthreads168,7754
+    vec<int> threadIndexOfSolver; // threadIndexOfSolver[solvers[i]] is the index in threads[] othreadIndexOfSolver169,7814
+    vec<int> threadIndexOfSolverCompanion; // threadIndexOfSolverCompanion[solvercompanions[i]] threadIndexOfSolverCompanion170,7925
+inline bool     MultiSolvers::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); retuaddClause173,8076
+inline void MultiSolvers::setVerbosity(int i) {verb = i;}setVerbosity175,8199
+inline void MultiSolvers::setVerbEveryConflicts(int i) {verbEveryConflicts=i;}setVerbEveryConflicts176,8257
+inline int      MultiSolvers::nVars         ()      const   { return numvar; }nVars177,8336
+inline int      MultiSolvers::nClauses      ()      const   { return numclauses; }nClauses178,8415
+inline int MultiSolvers::verbosity()  {return verb;}verbosity179,8498
+inline ParallelSolver* MultiSolvers::getPrimarySolver() {return solvers[0];}getPrimarySolver180,8551
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/Makefile,108
+EXEC      = glucose-syrupEXEC1,0
+DEPDIR    = mtl utils core simpDEPDIR2,26
+MROOT = $(PWD)/..MROOT3,58
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/ParallelSolver.h,3045
+#define	PARALLELSOLVER_HPARALLELSOLVER_H51,3043
+namespace Glucose {Glucose57,3191
+   enum ParallelStats{ParallelStats59,3216
+       nbexported=coreStatsSize,nbexported60,3239
+       nbimported,nbimported61,3272
+       nbexportedunit,nbexportedunit62,3291
+       nbimportedunit,nbimportedunit63,3314
+       nbimportedInPurgatory,nbimportedInPurgatory64,3337
+       nbImportedGoodClausesnbImportedGoodClauses65,3367
+#define parallelStatsSize parallelStatsSize67,3403
+class ParallelSolver : public SimpSolver {ParallelSolver74,3637
+    int		thn; // internal thread numberthn83,3899
+    SharedCompanion *sharedcomp;sharedcomp85,4011
+    bool coreFUIP; // true if one core is specialized for branching on all FUIPcoreFUIP86,4044
+    bool ImTheSolverFUIP;ImTheSolverFUIP87,4124
+    pthread_mutex_t *pmfinished; // mutex on which main process may wait for... As soon as one ppmfinished88,4150
+    pthread_cond_t *pcfinished; // condition variable that says that a thread as finishedpcfinished89,4283
+    virtual Clone* clone() const {clone101,4565
+    vec<Lit>    importedClause; // Temporary clause used to copy each imported clauseimportedClause112,4954
+    unsigned int    goodlimitlbd; // LBD score of the "good" clauses, locallygoodlimitlbd113,5040
+    int    goodlimitsize;goodlimitsize114,5118
+    bool purgatory; // mode of operationpurgatory115,5144
+    bool shareAfterProbation; // Share any none glue clause only after probation (seen 2 times ishareAfterProbation116,5185
+    bool plingeling; // plingeling strategy for sharing clauses (experimental)plingeling117,5302
+    int nbTimesSeenBeforeExport;nbTimesSeenBeforeExport118,5381
+    uint32_t  firstSharing, limitSharingByGoodLBD, limitSharingByFixedLimitLBD, limitSharingByFifirstSharing124,5614
+    uint32_t  firstSharing, limitSharingByGoodLBD, limitSharingByFixedLimitLBD, limitSharingByFilimitSharingByGoodLBD124,5614
+    uint32_t  firstSharing, limitSharingByGoodLBD, limitSharingByFixedLimitLBD, limitSharingByFilimitSharingByFixedLimitLBD124,5614
+    uint32_t  firstSharing, limitSharingByGoodLBD, limitSharingByFixedLimitLBD, limitSharingByFilimitSharingByFixedLimitSize124,5614
+    uint32_t  probationByFollowingRoads, probationByFriend;probationByFollowingRoads125,5724
+    uint32_t  probationByFollowingRoads, probationByFriend;probationByFriend125,5724
+    uint32_t  survivorLayers; // Number of layers for a common clause to survivesurvivorLayers126,5784
+    bool dontExportDirectReusedClauses ; // When true, directly reused clauses are not exporteddontExportDirectReusedClauses127,5865
+    uint64_t nbNotExportedBecauseDirectlyReused;nbNotExportedBecauseDirectlyReused128,5961
+    vec<uint32_t> goodImportsFromThreads; // Stats of good importations from other threadsgoodImportsFromThreads131,6020
+    inline int      ParallelSolver::threadNumber  ()      const   {return thn;}threadNumber148,6610
+    inline void     ParallelSolver::setThreadNumber (int i)       {thn = i;}setThreadNumber149,6690
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._SharedCompanion.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._MultiSolvers.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._Main.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/SharedCompanion.h,1650
+#define SharedCompanion_hSharedCompanion_h58,3279
+namespace Glucose {Glucose64,3447
+class SharedCompanion : public SolverCompanion {SharedCompanion67,3473
+	inline ParallelSolver* winner(){return jobFinishedBy;}        // Gets the first solver that calwinner84,4521
+	ClausesBuffer clausesBuffer; // A big blackboard for all threads sharing non unary clausesclausesBuffer88,4647
+	int nbThreads;               // Number of threadsnbThreads89,4739
+	pthread_mutex_t mutexSharedCompanion; // mutex for any high level sync between all threads (likmutexSharedCompanion92,4821
+	pthread_mutex_t mutexSharedClauseCompanion; // mutex for reading/writing clauses on the blackbomutexSharedClauseCompanion93,4928
+	pthread_mutex_t mutexSharedUnitCompanion; // mutex for reading/writing unit clauses on the blacmutexSharedUnitCompanion94,5028
+        pthread_mutex_t mutexJobFinished;mutexJobFinished95,5132
+	bool bjobFinished;bjobFinished97,5175
+	ParallelSolver *jobFinishedBy;jobFinishedBy98,5195
+	bool panicMode;                        // panicMode means no more increasing space neededpanicMode99,5227
+	lbool jobStatus;                       // globale status of the jobjobStatus100,5318
+	vec<int> nextUnit; // indice of next unit clause to retrieve for solver number i nextUnit104,5465
+	vec<Lit> unitLit;  // Set of unit literals found so farunitLit105,5548
+        vec<lbool> isUnary; // sign of the unary var (if proved, or l_Undef if not)	isUnary106,5605
+	double    random_seed;random_seed107,5690
+	static inline double drand(double& seed) {drand110,5776
+	static inline int irand(double& seed, int size) {irand117,6018
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/SolverCompanion.cc,341
+SolverCompanion::SolverCompanion()SolverCompanion62,3433
+SolverCompanion::~SolverCompanion()~SolverCompanion65,3472
+bool SolverCompanion::addSolver(ParallelSolver* s) {addSolver69,3513
+int SolverCompanion::runOnceCompanion() {runOnceCompanion74,3608
+int SolverCompanion::runOnceCompanion(ParallelSolver*s) {runOnceCompanion83,3859
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._MultiSolvers.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/._ClausesBuffer.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/parallel/SolverConfiguration.h,152
+#define SolverConfiguration_hSolverConfiguration_h52,3055
+namespace Glucose {Glucose56,3088
+class SolverConfiguration {SolverConfiguration60,3130
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/Constants.h,242
+#define DYNAMICNBLEVELDYNAMICNBLEVEL50,3014
+#define CONSTANTREMOVECLAUSECONSTANTREMOVECLAUSE51,3037
+#define RATIOREMOVECLAUSES RATIOREMOVECLAUSES54,3103
+#define LOWER_BOUND_FOR_BLOCKING_RESTART LOWER_BOUND_FOR_BLOCKING_RESTART58,3160
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._SolverTypes.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/SolverTypes.h,10316
+#define Glucose_SolverTypes_hGlucose_SolverTypes_h52,3047
+namespace Glucose {Glucose65,3254
+typedef int Var;Var74,3566
+#define var_Undef var_Undef75,3583
+struct Lit {Lit78,3608
+    int     x;x79,3621
+    bool operator == (Lit p) const { return x == p.x; }operator ==84,3714
+    bool operator != (Lit p) const { return x != p.x; }operator !=85,3770
+    bool operator <  (Lit p) const { return x < p.x;  } // '<' makes p, ~p adjacent in the orderoperator <86,3826
+inline  Lit  mkLit     (Var var, bool sign = false) { Lit p; p.x = var + var + (int)sign; returnmkLit90,3932
+inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }operator ~91,4034
+inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }operator ^92,4114
+inline  bool sign      (Lit p)              { return p.x & 1; }sign93,4208
+inline  int  var       (Lit p)              { return p.x >> 1; }var94,4272
+inline  int  toInt     (Var v)              { return v; } toInt97,4416
+inline  int  toInt     (Lit p)              { return p.x; } toInt98,4475
+inline  Lit  toLit     (int i)              { Lit p; p.x = i; return p; } toLit99,4536
+const Lit lit_Undef = { -2 };  // }- Useful special constants.lit_Undef104,4750
+const Lit lit_Error = { -1 };  // }lit_Error105,4813
+#define l_True l_True116,5302
+#define l_False l_False117,5416
+#define l_Undef l_Undef118,5461
+class lbool {lbool120,5507
+    uint8_t value;value121,5521
+    explicit lbool(uint8_t v) : value(v) { }lbool124,5549
+    lbool()       : value(0) { }lbool126,5595
+    explicit lbool(bool x) : value(!x) { }lbool127,5628
+    bool  operator == (lbool b) const { return ((b.value&2) & (value&2)) | (!(b.value&2)&(value operator ==129,5672
+    bool  operator != (lbool b) const { return !(*this == b); }operator !=130,5784
+    lbool operator ^  (bool  b) const { return lbool((uint8_t)(value^(uint8_t)b)); }operator ^131,5848
+    lbool operator && (lbool b) const { operator &&133,5934
+    lbool operator || (lbool b) const {operator ||138,6109
+inline int   toInt  (lbool l) { return l.value; }toInt146,6356
+inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }toLbool147,6406
+typedef RegionAllocator<uint32_t>::Ref CRef;CRef153,6638
+#define BITS_LBD BITS_LBD155,6684
+  #define BITS_SIZEWITHOUTSEL BITS_SIZEWITHOUTSEL157,6724
+#define BITS_REALSIZE BITS_REALSIZE159,6764
+class Clause {Clause160,6789
+    struct {__anon15444a850108161,6804
+      unsigned mark       : 2;mark162,6817
+      unsigned learnt     : 1;learnt163,6848
+      unsigned canbedel   : 1;canbedel164,6879
+      unsigned extra_size : 2; // extra size (end of 32bits) 0..3       extra_size165,6910
+      unsigned seen       : 1;seen166,6983
+      unsigned reloced    : 1;reloced167,7014
+      unsigned exported   : 2; // Values to keep track of the clause status for exportationsexported168,7045
+      unsigned oneWatched : 1;oneWatched169,7138
+      unsigned lbd : BITS_LBD;lbd170,7169
+      unsigned size       : BITS_REALSIZE;size172,7201
+      unsigned szWithoutSelectors : BITS_SIZEWITHOUTSEL;szWithoutSelectors175,7264
+    }  header;header177,7328
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];__anon15444a85020a179,7344
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];lit179,7344
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];act179,7344
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];abs179,7344
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];rel179,7344
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];data179,7344
+    Clause(const V& ps, int _extra_size, bool learnt) {Clause185,7557
+    void calcAbstraction() {calcAbstraction212,8274
+    int          size        ()      const   { return header.size; }size219,8523
+    void         shrink      (int i)         { assert(i <= size()); shrink220,8592
+    void         pop         ()              { shrink(1); }pop228,8919
+    bool         learnt      ()      const   { return header.learnt; }learnt229,8979
+    void         nolearnt    ()              { header.learnt = false;}nolearnt230,9050
+    bool         has_extra   ()      const   { return header.extra_size > 0; }has_extra231,9121
+    uint32_t     mark        ()      const   { return header.mark; }mark232,9200
+    void         mark        (uint32_t m)    { header.mark = m; }mark233,9269
+    const Lit&   last        ()      const   { return data[header.size-1].lit; }last234,9335
+    bool         reloced     ()      const   { return header.reloced; }reloced236,9417
+    CRef         relocation  ()      const   { return data[0].rel; }relocation237,9489
+    void         relocate    (CRef c)        { header.reloced = 1; data[0].rel = c; }relocate238,9558
+    Lit&         operator [] (int i)         { return data[i].lit; }operator [] 242,9814
+    Lit          operator [] (int i) const   { return data[i].lit; }operator [] 243,9883
+    float&       activity    ()              { assert(header.extra_size > 0); return data[headeractivity246,10021
+    uint32_t     abstraction () const        { assert(header.extra_size > 0); return data[headerabstraction247,10131
+    bool        wasImported() const {return header.extra_size > 1;}wasImported250,10286
+    uint32_t    importedFrom () const       { assert(header.extra_size > 1); return data[header.importedFrom251,10354
+    void setImportedFrom(uint32_t ifrom) {assert(header.extra_size > 1); data[header.size+1].abssetImportedFrom252,10466
+    void         setLBD(int i)  {header.lbd=i; /*if (i < (1<<(BITS_LBD-1))) header.lbd = i; elsesetLBD256,10670
+    unsigned int        lbd    () const        { return header.lbd; }lbd258,10876
+    void setCanBeDel(bool b) {header.canbedel = b;}setCanBeDel259,10946
+    bool canBeDel() {return header.canbedel;}canBeDel260,10998
+    void setSeen(bool b) {header.seen = b;}setSeen261,11044
+    bool getSeen() {return header.seen;}getSeen262,11088
+    void setExported(unsigned int b) {header.exported = b;}setExported263,11129
+    unsigned int getExported() {return header.exported;}getExported264,11189
+    void setOneWatched(bool b) {header.oneWatched = b;}setOneWatched265,11246
+    bool getOneWatched() {return header.oneWatched;}getOneWatched266,11302
+    void setSizeWithoutSelectors   (unsigned int n)              {header.szWithoutSelectors = n;setSizeWithoutSelectors268,11375
+    unsigned int        sizeWithoutSelectors   () const        { return header.szWithoutSelectorsizeWithoutSelectors269,11474
+    const CRef CRef_Undef = RegionAllocator<uint32_t>::Ref_Undef;CRef_Undef279,11762
+    class ClauseAllocator : public RegionAllocator<uint32_t>ClauseAllocator280,11828
+        static int clauseWord32Size(int size, int extra_size){clauseWord32Size282,11895
+        bool extra_clause_field;extra_clause_field285,12066
+        ClauseAllocator(uint32_t start_cap) : RegionAllocator<uint32_t>(start_cap), extra_clauseClauseAllocator287,12100
+        ClauseAllocator() : extra_clause_field(false){}ClauseAllocator288,12212
+        void moveTo(ClauseAllocator& to){moveTo290,12269
+        CRef alloc(const Lits& ps, bool learnt = false, bool imported = false)alloc295,12450
+        Clause&       operator[](Ref r)       { return (Clause&)RegionAllocator<uint32_t>::operaoperator []309,13034
+        const Clause& operator[](Ref r) const { return (Clause&)RegionAllocator<uint32_t>::operaoperator []310,13142
+        Clause*       lea       (Ref r)       { return (Clause*)RegionAllocator<uint32_t>::lea(rlea311,13250
+        const Clause* lea       (Ref r) const { return (Clause*)RegionAllocator<uint32_t>::lea(rlea312,13351
+        Ref           ael       (const Clause* t){ return RegionAllocator<uint32_t>::ael((uint32ael313,13452
+        void free(CRef cid)free315,13559
+        void reloc(CRef& cr, ClauseAllocator& to)reloc321,13737
+class OccListsOccLists358,15077
+    vec<Vec>  occs;occs360,15094
+    vec<char> dirty;dirty361,15114
+    vec<Idx>  dirties;dirties362,15135
+    Deleted   deleted;deleted363,15158
+    OccLists(const Deleted& d) : deleted(d) {}OccLists366,15191
+    void  init      (const Idx& idx){ occs.growTo(toInt(idx)+1); dirty.growTo(toInt(idx)+1, 0); init368,15243
+    Vec&  operator[](const Idx& idx){ return occs[toInt(idx)]; }operator []370,15409
+    Vec&  lookup    (const Idx& idx){ if (dirty[toInt(idx)]) clean(idx); return occs[toInt(idx)]lookup371,15474
+    void copyTo(OccLists &copy) const {copyTo374,15599
+    void  smudge    (const Idx& idx){smudge384,15854
+    void  clear(bool free = true){clear391,16012
+void OccLists<Idx,Vec,Deleted>::cleanAll()cleanAll400,16191
+void OccLists<Idx,Vec,Deleted>::clean(const Idx& idx)clean411,16511
+class CMapCMap428,16941
+    struct CRefHash {CRefHash430,16954
+        uint32_t operator()(CRef cr) const { return (uint32_t)cr; } };operator ()431,16976
+    typedef Map<CRef, T, CRefHash> HashTable;HashTable433,17048
+    HashTable map;map434,17094
+    void     clear       ()                           { map.clear(); }clear438,17155
+    int      size        ()                const      { return map.elems(); }size439,17226
+    void     insert      (CRef cr, const T& t){ map.insert(cr, t); }insert443,17345
+    void     growTo      (CRef cr, const T& t){ map.insert(cr, t); } // NOTE: for compatibilitygrowTo444,17414
+    void     remove      (CRef cr)            { map.remove(cr); }remove445,17510
+    bool     has         (CRef cr, T& t)      { return map.peek(cr, t); }has446,17576
+    const T& operator [] (CRef cr) const      { return map[cr]; }operator [] 449,17712
+    T&       operator [] (CRef cr)            { return map[cr]; }operator [] 450,17778
+    int  bucket_count() const { return map.bucket_count(); }bucket_count453,17902
+    const vec<typename HashTable::Pair>& bucket(int i) const { return map.bucket(i); }bucket454,17963
+    void moveTo(CMap& other){ map.moveTo(other.map); }moveTo457,18086
+    void debug(){debug460,18160
+inline Lit Clause::subsumes(const Clause& other) constsubsumes478,18855
+inline void Clause::strengthen(Lit p)strengthen509,19888
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/Dimacs.h,320
+#define Glucose_Dimacs_hGlucose_Dimacs_h22,1346
+namespace Glucose {Glucose29,1453
+static void readClause(B& in, Solver& S, vec<Lit>& lits) {readClause35,1625
+static void parse_DIMACS_main(B& in, Solver& S) {parse_DIMACS_main48,2001
+static void parse_DIMACS(gzFile input_stream, Solver& S) {parse_DIMACS82,3058
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/BoundedQueue.h,1685
+#define BoundedQueue_hBoundedQueue_h52,3041
+namespace Glucose {Glucose58,3188
+class bqueue {bqueue61,3228
+    vec<T>  elems;elems62,3243
+    int     first;first63,3262
+	int		last;last64,3281
+	unsigned long long sumofqueue;sumofqueue65,3293
+	int     maxsize;maxsize66,3325
+	int     queuesize; // Number of current elements (must be < maxsize !)queuesize67,3343
+	bool expComputed;expComputed68,3415
+	double exp,value;exp69,3434
+	double exp,value;value69,3434
+ bqueue(void) : first(0), last(0), sumofqueue(0), maxsize(0), queuesize(0),expComputed(false) { bqueue71,3461
+	void initSize(int size) {growTo(size);exp = 2.0/(size+1);} // Init size of bounded size queueinitSize73,3562
+	void push(T x) {push75,3659
+	T peek() { assert(queuesize>0); return elems[last]; }peek88,4006
+	void pop() {sumofqueue-=elems[last]; queuesize--; if ((++last) == maxsize) last = 0;}pop89,4061
+	unsigned long long getsum() const {return sumofqueue;}getsum91,4150
+	unsigned int getavg() const {return (unsigned int)(sumofqueue/((unsigned long long)queuesize));getavg92,4206
+	int maxSize() const {return maxsize;}maxSize93,4304
+	double getavgDouble() const {getavgDouble94,4343
+	int isvalid() const {return (queuesize==maxsize);}isvalid101,4486
+	void growTo(int size) {growTo103,4540
+	double getAvgExp() {getAvgExp109,4681
+	void fastclear() {first = 0; last = 0; queuesize=0; sumofqueue=0;} // to be called after restarfastclear127,5035
+    int  size(void)    { return queuesize; }size129,5157
+    void clear(bool dealloc = false)   { elems.clear(dealloc); first = 0; maxsize=0; queuesize=0clear131,5203
+    void copyTo(bqueue &dest) const {copyTo133,5316
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/Solver.h,17183
+#define Glucose_Solver_hGlucose_Solver_h51,3036
+namespace Glucose {Glucose63,3276
+enum CoreStats {CoreStats66,3316
+  sumResSeen,sumResSeen67,3333
+  sumRes,sumRes68,3347
+  sumTrail,  sumTrail69,3357
+  nbPromoted,nbPromoted70,3371
+  originalClausesSeen,originalClausesSeen71,3385
+  sumDecisionLevels,sumDecisionLevels72,3408
+  nbPermanentLearnts,nbPermanentLearnts73,3429
+  nbRemovedClauses,nbRemovedClauses74,3451
+  nbRemovedUnaryWatchedClauses,nbRemovedUnaryWatchedClauses75,3471
+  nbReducedClauses,nbReducedClauses76,3503
+  nbDL2,nbDL277,3523
+  nbBin,nbBin78,3532
+  nbUn,nbUn79,3541
+  nbReduceDB,nbReduceDB80,3549
+  rnd_decisions,rnd_decisions81,3563
+  nbstopsrestarts,nbstopsrestarts82,3580
+  nbstopsrestartssame,nbstopsrestartssame83,3599
+  lastblockatrestart,lastblockatrestart84,3622
+  dec_vars,dec_vars85,3644
+  clauses_literals,clauses_literals86,3656
+  learnts_literals,learnts_literals87,3676
+  max_literals,max_literals88,3696
+  tot_literals,tot_literals89,3712
+  noDecisionConflictnoDecisionConflict90,3728
+#define coreStatsSize coreStatsSize93,3754
+class Solver : public Clone {Solver97,3909
+    virtual Clone* clone() const {clone113,4141
+    inline char valuePhase(Var v) {return polarity[v];}valuePhase169,7854
+    vec<lbool> model;             // If problem is satisfiable, this vector contains the model (model192,8560
+    vec<Lit>   conflict;          // If problem is unsatisfiable (possibly under assumptions),conflict193,8665
+    int       verbosity;verbosity198,8909
+    int       verbEveryConflicts;verbEveryConflicts199,8934
+    int       showModel;showModel200,8968
+    double    K;K203,9028
+    double    R;R204,9045
+    double    sizeLBDQueue;sizeLBDQueue205,9062
+    double    sizeTrailQueue;sizeTrailQueue206,9090
+    int          firstReduceDB;firstReduceDB209,9152
+    int          incReduceDB;incReduceDB210,9184
+    int          specialIncReduceDB;specialIncReduceDB211,9214
+    unsigned int lbLBDFrozenClause;lbLBDFrozenClause212,9251
+    bool         chanseokStrategy;chanseokStrategy213,9287
+    int          coLBDBound; // Keep all learnts with lbd<=coLBDBoundcoLBDBound214,9322
+    int          lbSizeMinimizingClause;lbSizeMinimizingClause216,9428
+    unsigned int lbLBDMinimizingClause;lbLBDMinimizingClause217,9469
+    double    var_decay;var_decay220,9540
+    double    max_var_decay;max_var_decay221,9565
+    double    clause_decay;clause_decay222,9594
+    double    random_var_freq;random_var_freq223,9622
+    double    random_seed;random_seed224,9653
+    int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=dccmin_mode225,9680
+    int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=fuphase_saving226,9782
+    bool      rnd_pol;            // Use random polarities for branching heuristics.rnd_pol227,9883
+    bool      rnd_init_act;       // Initialize variable activities with a small random value.rnd_init_act228,9968
+    bool      randomizeFirstDescent; // the first decisions (until first cnflict) are made randorandomizeFirstDescent229,10063
+    double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collgarbage_frac233,10263
+    FILE*               certifiedOutput;certifiedOutput237,10505
+    bool                certifiedUNSAT;certifiedUNSAT238,10546
+    bool                vbyte;vbyte239,10586
+    uint32_t panicModeLastRemoved, panicModeLastRemovedShared;panicModeLastRemoved247,10726
+    uint32_t panicModeLastRemoved, panicModeLastRemovedShared;panicModeLastRemovedShared247,10726
+    bool useUnaryWatched;            // Enable unary watched literalsuseUnaryWatched249,10794
+    bool promoteOneWatchedClause;    // One watched clauses are promotted to two watched clausespromoteOneWatchedClause250,10864
+    vec<uint64_t> stats;stats267,11576
+    uint64_t solves,starts,decisions,propagations,conflicts,conflictsRestarts;solves270,11669
+    uint64_t solves,starts,decisions,propagations,conflicts,conflictsRestarts;starts270,11669
+    uint64_t solves,starts,decisions,propagations,conflicts,conflictsRestarts;decisions270,11669
+    uint64_t solves,starts,decisions,propagations,conflicts,conflictsRestarts;propagations270,11669
+    uint64_t solves,starts,decisions,propagations,conflicts,conflictsRestarts;conflicts270,11669
+    uint64_t solves,starts,decisions,propagations,conflicts,conflictsRestarts;conflictsRestarts270,11669
+    long curRestart;curRestart274,11761
+    bool glureduce;glureduce277,11806
+    uint32_t restart_inc;restart_inc278,11826
+    bool  luby_restart;luby_restart279,11852
+    bool adaptStrategies;adaptStrategies280,11876
+    uint32_t luby_restart_factor;luby_restart_factor281,11902
+    bool randomize_on_restarts, fixed_randomize_on_restarts, newDescent;randomize_on_restarts282,11936
+    bool randomize_on_restarts, fixed_randomize_on_restarts, newDescent;fixed_randomize_on_restarts282,11936
+    bool randomize_on_restarts, fixed_randomize_on_restarts, newDescent;newDescent282,11936
+    uint32_t randomDescentAssignments;randomDescentAssignments283,12009
+    bool forceUnsatOnNewDescent;forceUnsatOnNewDescent284,12048
+    struct VarData { CRef reason; int level; };VarData287,12114
+    struct VarData { CRef reason; int level; };reason287,12114
+    struct VarData { CRef reason; int level; };level287,12114
+    static inline VarData mkVarData(CRef cr, int l){ VarData d = {cr, l}; return d; }mkVarData288,12162
+    struct Watcher {Watcher290,12249
+        CRef cref;cref291,12270
+        Lit  blocker;blocker292,12289
+        Watcher(CRef cr, Lit p) : cref(cr), blocker(p) {}Watcher293,12311
+        bool operator==(const Watcher& w) const { return cref == w.cref; }operator ==294,12369
+        bool operator!=(const Watcher& w) const { return cref != w.cref; }operator !=295,12444
+    struct WatcherDeletedWatcherDeleted304,12680
+        const ClauseAllocator& ca;ca306,12712
+        WatcherDeleted(const ClauseAllocator& _ca) : ca(_ca) {}WatcherDeleted307,12747
+        bool operator()(const Watcher& w) const { return ca[w.cref].mark() == 1; }operator ()308,12811
+    struct VarOrderLt {VarOrderLt311,12902
+        const vec<double>&  activity;activity312,12926
+        bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }operator () 313,12964
+        VarOrderLt(const vec<double>&  act) : activity(act) { }VarOrderLt314,13048
+    int                lastIndexRed;lastIndexRed320,13149
+    bool                ok;               // If FALSE, the constraints are already unsatisfiableok321,13186
+    double              cla_inc;          // Amount to bump next clause with.cla_inc322,13325
+    vec<double>         activity;         // A heuristic measurement of the activity of a variabactivity323,13403
+    double              var_inc;          // Amount to bump next variable with.var_inc324,13503
+                        watches;          // 'watches[lit]' is a list of constraints watching 'lwatches326,13631
+                        watchesBin;          // 'watches[lit]' is a list of constraints watchingwatchesBin328,13820
+                        unaryWatches;       //  Unary watch scheme (clauses are seen when they bunaryWatches330,14012
+    vec<CRef>           clauses;          // List of problem clauses.clauses331,14120
+    vec<CRef>           learnts;          // List of learnt clauses.learnts332,14190
+    vec<CRef>           permanentLearnts; // The list of learnts clauses kept permanentlypermanentLearnts333,14259
+    vec<CRef>           unaryWatchedClauses;  // List of imported clauses (after the purgatory) unaryWatchedClauses334,14349
+    vec<lbool>          assigns;          // The current assignments.assigns336,14480
+    vec<char>           polarity;         // The preferred polarity of each variable.polarity337,14550
+    vec<char>           forceUNSAT;forceUNSAT338,14636
+    vec<char>           decision;         // Declares if a variable is eligible for selection indecision341,14742
+    vec<Lit>            trail;            // Assignment stack; stores all assigments made in thetrail342,14863
+    vec<int>            nbpos;nbpos343,14982
+    vec<int>            trail_lim;        // Separator indices for different decision levels in trail_lim344,15013
+    vec<VarData>        vardata;          // Stores reason and level for each variable.vardata345,15118
+    int                 qhead;            // Head of queue (as index into the trail -- no more eqhead346,15206
+    int                 simpDB_assigns;   // Number of top-level assignments since last executiosimpDB_assigns347,15341
+    int64_t             simpDB_props;     // Remaining number of propagations that must be made simpDB_props348,15456
+    vec<Lit>            assumptions;      // Current set of assumptions provided to solve by theassumptions349,15591
+    Heap<VarOrderLt>    order_heap;       // A priority queue of variables ordered with respect order_heap350,15694
+    double              progress_estimate;// Set by 'search()'.progress_estimate351,15816
+    bool                remove_satisfied; // Indicates whether possibly inefficient linear scan remove_satisfied352,15880
+    vec<unsigned int>   permDiff;           // permDiff[var] contains the current conflict numbepermDiff353,16033
+    vec<Lit> lastDecisionLevel; lastDecisionLevel357,16241
+    ClauseAllocator     ca;ca359,16275
+    int nbclausesbeforereduce;            // To know when it is time to reduce clause databasenbclausesbeforereduce361,16304
+    bqueue<unsigned int> trailQueue,lbdQueue; // Bounded queues for restarts.trailQueue364,16439
+    bqueue<unsigned int> trailQueue,lbdQueue; // Bounded queues for restarts.lbdQueue364,16439
+    float sumLBD; // used to compute the global average of LBD. Restarts...sumLBD365,16517
+    int sumAssumptions;sumAssumptions366,16593
+    CRef lastLearntClause;lastLearntClause367,16617
+    vec<char>           seen;seen373,16818
+    vec<Lit>            analyze_stack;analyze_stack374,16848
+    vec<Lit>            analyze_toclear;analyze_toclear375,16887
+    vec<Lit>            add_tmp;add_tmp376,16928
+    unsigned int  MYFLAG;MYFLAG377,16961
+    double              max_learnts;max_learnts380,17021
+    double              learntsize_adjust_confl;learntsize_adjust_confl381,17058
+    int                 learntsize_adjust_cnt;learntsize_adjust_cnt382,17107
+    int64_t             conflict_budget;    // -1 means no budget.conflict_budget386,17190
+    int64_t             propagation_budget; // -1 means no budget.propagation_budget387,17257
+    bool                asynch_interrupt;asynch_interrupt388,17324
+    int incremental; // Use incremental SAT Solverincremental391,17411
+    int nbVarsInitialFormula; // nb VAR in formula without assumptions (incremental SAT)nbVarsInitialFormula392,17462
+    double totalTime4Sat,totalTime4Unsat;totalTime4Sat393,17551
+    double totalTime4Sat,totalTime4Unsat;totalTime4Unsat393,17551
+    int nbSatCalls,nbUnsatCalls;nbSatCalls394,17593
+    int nbSatCalls,nbUnsatCalls;nbUnsatCalls394,17593
+    vec<int> assumptionPositions,initialPositions;assumptionPositions395,17626
+    vec<int> assumptionPositions,initialPositions;initialPositions395,17626
+    inline bool isSelector(Var v) {return (incremental && v>nbVarsInitialFormula);}isSelector450,22111
+    static inline double drand(double& seed) {drand456,22291
+    static inline int irand(double& seed, int size) {irand463,22551
+inline CRef Solver::reason(Var x) const { return vardata[x].reason; }reason471,22792
+inline int  Solver::level (Var x) const { return vardata[x].level; }level472,22862
+inline void Solver::insertVarOrder(Var x) {insertVarOrder474,22932
+inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }varDecayActivity477,23047
+inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }varBumpActivity478,23118
+inline void Solver::varBumpActivity(Var v, double inc) {varBumpActivity479,23194
+inline void Solver::claDecayActivity() { cla_inc *= (1 / clause_decay); }claDecayActivity490,23540
+inline void Solver::claBumpActivity (Clause& c) {claBumpActivity491,23614
+inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }checkGarbage498,23878
+inline void Solver::checkGarbage(double gf){checkGarbage499,23955
+inline bool     Solver::enqueue         (Lit p, CRef from)      { return value(p) != l_Undef ? venqueue504,24135
+inline bool     Solver::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addaddClause505,24289
+inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(); return addClaaddEmptyClause506,24405
+inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(addClause507,24518
+inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(addClause508,24648
+inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(addClause509,24795
+ inline bool     Solver::locked          (const Clause& c) const { locked510,24959
+inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); newDecisionLevel518,25374
+inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }decisionLevel520,25473
+inline uint32_t Solver::abstractLevel (Var x) const   { return 1 << (level(x) & 31); }abstractLevel521,25556
+inline lbool    Solver::value         (Var x) const   { return assigns[x]; }value522,25643
+inline lbool    Solver::value         (Lit p) const   { return assigns[var(p)] ^ sign(p); }value523,25720
+inline lbool    Solver::modelValue    (Var x) const   { return model[x]; }modelValue524,25812
+inline lbool    Solver::modelValue    (Lit p) const   { return model[var(p)] ^ sign(p); }modelValue525,25887
+inline int      Solver::nAssigns      ()      const   { return trail.size(); }nAssigns526,25977
+inline int      Solver::nClauses      ()      const   { return clauses.size(); }nClauses527,26056
+inline int      Solver::nLearnts      ()      const   { return learnts.size(); }nLearnts528,26137
+inline int      Solver::nVars         ()      const   { return vardata.size(); }nVars529,26218
+inline int      Solver::nFreeVars     ()         { nFreeVars530,26299
+inline void     Solver::setPolarity   (Var v, bool b) { polarity[v] = b; }setPolarity533,26459
+inline void     Solver::setDecisionVar(Var v, bool b) setDecisionVar534,26534
+inline void     Solver::setConfBudget(int64_t x){ conflict_budget    = conflicts    + x; }setConfBudget542,26743
+inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagations + x; }setPropBudget543,26834
+inline void     Solver::interrupt(){ asynch_interrupt = true; }interrupt544,26925
+inline void     Solver::clearInterrupt(){ asynch_interrupt = false; }clearInterrupt545,26989
+inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }budgetOff546,27059
+inline bool     Solver::withinBudget() const {withinBudget547,27141
+inline bool     Solver::solve         ()                    { budgetOff(); assumptions.clear(); solve555,27662
+inline bool     Solver::solve         (Lit p)               { budgetOff(); assumptions.clear(); solve556,27787
+inline bool     Solver::solve         (Lit p, Lit q)        { budgetOff(); assumptions.clear(); solve557,27933
+inline bool     Solver::solve         (Lit p, Lit q, Lit r) { budgetOff(); assumptions.clear(); solve558,28100
+inline bool     Solver::solve         (const vec<Lit>& assumps){ budgetOff(); assumps.copyTo(asssolve559,28288
+inline lbool    Solver::solveLimited  (const vec<Lit>& assumps){ assumps.copyTo(assumptions); resolveLimited560,28424
+inline bool     Solver::okay          ()      const   { return ok; }okay561,28537
+inline void     Solver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(file, as); }toDimacs563,28607
+inline void     Solver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.push(p); toDimactoDimacs564,28699
+inline void     Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); toDimacs565,28810
+inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.putoDimacs566,28940
+inline void Solver::printLit(Lit l)printLit574,29208
+inline void Solver::printClause(CRef cr)printClause580,29365
+inline void Solver::printInitialClause(CRef cr)printInitialClause589,29524
+struct reduceDBAct_lt {reduceDBAct_lt601,29826
+    ClauseAllocator& ca;ca602,29850
+    reduceDBAct_lt(ClauseAllocator& ca_) : ca(ca_) {reduceDBAct_lt604,29876
+    bool operator()(CRef x, CRef y) {operator ()607,29936
+struct reduceDB_lt {reduceDB_lt619,30294
+    ClauseAllocator& ca;ca620,30315
+    reduceDB_lt(ClauseAllocator& ca_) : ca(ca_) {reduceDB_lt622,30341
+    bool operator()(CRef x, CRef y) {operator ()625,30398
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._Solver.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._BoundedQueue.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/SolverStats.h,704
+#define	SOLVERSTATS_HSOLVERSTATS_H51,3033
+namespace Glucose {Glucose55,3095
+    class SolverStats {SolverStats57,3116
+        Map<std::string, uint64_t> map;map59,3155
+        SolverStats(std::string all[],int sz) : map() {SolverStats63,3209
+        void addStats(std::string names[],int sz) {addStats67,3306
+        void addStat(std::string name) {addStat72,3448
+        const uint64_t& operator [] (const std::string name) const {operator [] 76,3533
+         uint64_t& operator [] (const std::string name)  {operator [] 80,3643
+        void maximize(const std::string name,uint64_t val) {maximize84,3743
+        void minimize(const std::string name,uint64_t val) {minimize89,3890
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/Makefile,17
+PHONY:PHONY1,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._Solver.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._Dimacs.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._Constants.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/._SolverStats.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/core/Solver.cc,7344
+static const char *_cat = "CORE";_cat70,3518
+static const char *_cr = "CORE -- RESTART";_cr71,3552
+static const char *_cred = "CORE -- REDUCE";_cred72,3596
+static const char *_cm = "CORE -- MINIMIZE";_cm73,3641
+static DoubleOption opt_K(_cr, "K", "The constant used to force restart", 0.8, DoubleRange(0, faopt_K76,3688
+static DoubleOption opt_R(_cr, "R", "The constant used to block restart", 1.4, DoubleRange(1, faopt_R77,3801
+static IntOption opt_size_lbd_queue(_cr, "szLBDQueue", "The size of moving average for LBD (restopt_size_lbd_queue78,3914
+static IntOption opt_size_trail_queue(_cr, "szTrailQueue", "The size of moving average for trailopt_size_trail_queue79,4048
+static IntOption opt_first_reduce_db(_cred, "firstReduceDB", "The number of conflicts before theopt_first_reduce_db81,4197
+static IntOption opt_inc_reduce_db(_cred, "incReduceDB", "Increment for reduce DB", 300, IntRangopt_inc_reduce_db83,4425
+static IntOption opt_spec_inc_reduce_db(_cred, "specialIncReduceDB", "Special increment for reduopt_spec_inc_reduce_db84,4539
+static IntOption opt_lb_lbd_frozen_clause(_cred, "minLBDFrozenClause", "Protect clauses if theiropt_lb_lbd_frozen_clause85,4674
+static BoolOption opt_chanseok_hack(_cred, "chanseok",opt_chanseok_hack87,4890
+static IntOption opt_chanseok_limit(_cred, "co", "Chanseok Oh: all learnt clauses with LBD<=co aopt_chanseok_limit89,5097
+static IntOption opt_lb_size_minimzing_clause(_cm, "minSizeMinimizingClause", "The min size requopt_lb_size_minimzing_clause92,5238
+static IntOption opt_lb_lbd_minimzing_clause(_cm, "minLBDMinimizingClause", "The min LBD requireopt_lb_lbd_minimzing_clause93,5389
+static DoubleOption opt_var_decay(_cat, "var-decay", "The variable activity decay factor (startiopt_var_decay96,5538
+static DoubleOption opt_max_var_decay(_cat, "max-var-decay", "The variable activity decay factoropt_max_var_decay97,5685
+static DoubleOption opt_clause_decay(_cat, "cla-decay", "The clause activity decay factor", 0.99opt_clause_decay98,5824
+static DoubleOption opt_random_var_freq(_cat, "rnd-freq", "The frequency with which the decisionopt_random_var_freq99,5957
+static DoubleOption opt_random_seed(_cat, "rnd-seed", "Used by the random variable selection", 9opt_random_seed101,6175
+static IntOption opt_ccmin_mode(_cat, "ccmin-mode", "Controls conflict clause minimization (0=noopt_ccmin_mode102,6321
+static IntOption opt_phase_saving(_cat, "phase-saving", "Controls the level of phase saving (0=nopt_phase_saving103,6460
+static BoolOption opt_rnd_init_act(_cat, "rnd-init", "Randomize the initial activity", false);opt_rnd_init_act104,6602
+static DoubleOption opt_garbage_frac(_cat, "gc-frac", "The fraction of wasted memory allowed befopt_garbage_frac105,6697
+static BoolOption opt_glu_reduction(_cat, "gr", "glucose strategy to fire clause database reductopt_glu_reduction107,6917
+static BoolOption opt_luby_restart(_cat, "luby", "Use the Luby restart sequence", false);opt_luby_restart108,7068
+static DoubleOption opt_restart_inc(_cat, "rinc", "Restart interval increase factor", 2, DoubleRopt_restart_inc109,7158
+static IntOption opt_luby_restart_factor(_cred, "luby-factor", "Luby restart factor", 100, IntRaopt_luby_restart_factor110,7288
+static IntOption opt_randomize_phase_on_restarts(_cat, "phase-restart",opt_randomize_phase_on_restarts112,7405
+static BoolOption opt_fixed_randomize_phase_on_restarts(_cat, "fix-phas-rest", "Fixes the first opt_fixed_randomize_phase_on_restarts115,7752
+static BoolOption opt_adapt(_cat, "adapt", "Adapt dynamically stategies after 100000 conflicts",opt_adapt117,7884
+static BoolOption opt_forceunsat(_cat,"forceunsat","Force the phase for UNSAT",true);opt_forceunsat119,7989
+Solver::Solver() :Solver123,8203
+Solver::Solver(const Solver &s) :Solver210,10836
+Solver::~Solver() {~Solver316,14314
+void Solver::write_char(unsigned char ch) {write_char325,14512
+void Solver::write_lit(int n) {write_lit331,14633
+void Solver::setIncrementalMode() {setIncrementalMode344,15011
+void Solver::initNbInitialVars(int nb) {initNbInitialVars355,15257
+bool Solver::isIncremental() {isIncremental360,15333
+Var Solver::newVar(bool sign, bool dvar) {newVar373,15704
+bool Solver::addClause_(vec <Lit> &ps) {addClause_395,16314
+void Solver::attachClause(CRef cr) {attachClause463,18248
+void Solver::attachClausePurgatory(CRef cr) {attachClausePurgatory479,18689
+void Solver::detachClause(CRef cr, bool strict) {detachClause488,18846
+void Solver::detachClausePurgatory(CRef cr, bool strict) {detachClausePurgatory518,19845
+void Solver::removeClause(CRef cr, bool inPurgatory) {removeClause529,20081
+bool Solver::satisfied(const Clause &c) const {satisfied559,20866
+template <typename T>inline unsigned int Solver::computeLBD(const T &lits, int end) {computeLBD577,21319
+void Solver::minimisationWithBinaryResolution(vec <Lit> &out_learnt) {minimisationWithBinaryResolution614,22368
+void Solver::cancelUntil(int level) {cancelUntil658,23621
+Lit Solver::pickBranchLit() {pickBranchLit678,24285
+void Solver::analyze(CRef confl, vec <Lit> &out_learnt, vec <Lit> &selectors, int &out_btlevel, analyze735,26379
+bool Solver::litRedundant(Lit p, uint32_t abstract_levels) {litRedundant926,33125
+void Solver::analyzeFinal(Lit p, vec <Lit> &out_conflict) {analyzeFinal972,34895
+void Solver::uncheckedEnqueue(Lit p, CRef from) {uncheckedEnqueue1005,35902
+void Solver::bumpForceUNSAT(Lit q) {bumpForceUNSAT1013,36104
+CRef Solver::propagate() {propagate1030,36679
+CRef Solver::propagateUnaryWatches(Lit p) {propagateUnaryWatches1165,40503
+void Solver::reduceDB() {reduceDB1250,43489
+void Solver::removeSatisfied(vec <CRef> &cs) {removeSatisfied1287,44759
+void Solver::rebuildOrderHeap() {rebuildOrderHeap1305,45101
+bool Solver::simplify() {simplify1323,45739
+void Solver::adaptSolver() {adaptSolver1354,46491
+lbool Solver::search(int nof_conflicts) {search1463,50324
+double Solver::progressEstimate() const {progressEstimate1663,57828
+void Solver::printIncrementalStats() {printIncrementalStats1677,58180
+double Solver::luby(double y, int x) {luby1716,59241
+lbool Solver::solve_(bool do_simp, bool turn_off_simp) // Parameters are useless in core but usesolve_1735,59666
+static Var mapVar(Var x, vec <Var> &map, Var &max) {mapVar1849,64999
+void Solver::toDimacs(FILE *f, Clause &c, vec <Var> &map, Var &max) {toDimacs1858,65178
+void Solver::toDimacs(const char *file, const vec <Lit> &assumps) {toDimacs1868,65467
+void Solver::toDimacs(FILE *f, const vec <Lit> &assumps) {toDimacs1877,65699
+void Solver::relocAll(ClauseAllocator &to) {relocAll1923,67104
+void Solver::garbageCollect() {garbageCollect1971,68563
+bool Solver::panicModeIsEnabled() {panicModeIsEnabled1988,69356
+void Solver::parallelImportUnaryClauses() {parallelImportUnaryClauses1993,69414
+bool Solver::parallelImportClauses() {parallelImportClauses1997,69462
+void Solver::parallelExportUnaryClause(Lit p) {parallelExportUnaryClause2002,69523
+void Solver::parallelExportClauseDuringSearch(Clause &c) {parallelExportClauseDuringSearch2006,69575
+bool Solver::parallelJobIsFinished() {parallelJobIsFinished2010,69638
+void Solver::parallelImportClauseDuringConflictAnalysis(Clause &c, CRef confl) {parallelImportClauseDuringConflictAnalysis2016,69752
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/Options.h,3993
+#define Glucose_Options_hGlucose_Options_h21,1293
+namespace Glucose {Glucose32,1476
+class OptionOption48,2076
+    const char* name;name51,2103
+    const char* description;description52,2125
+    const char* category;category53,2154
+    const char* type_name;type_name54,2180
+    static vec<Option*>& getOptionList () { static vec<Option*> options; return options; }getOptionList56,2208
+    static const char*&  getUsageString() { static const char* usage_str; return usage_str; }getUsageString57,2299
+    static const char*&  getHelpPrefixString() { static const char* help_prefix_str = ""; returngetHelpPrefixString58,2393
+    struct OptionLt {OptionLt60,2510
+        bool operator()(const Option* x, const Option* y) {operator ()61,2532
+    Option(const char* name_, Option67,2754
+    virtual ~Option() {}~Option80,3038
+struct IntRange {IntRange96,3613
+    int begin;begin97,3631
+    int end;end98,3646
+    IntRange(int b, int e) : begin(b), end(e) {}IntRange99,3659
+struct Int64Range {Int64Range102,3712
+    int64_t begin;begin103,3732
+    int64_t end;end104,3751
+    Int64Range(int64_t b, int64_t e) : begin(b), end(e) {}Int64Range105,3768
+struct DoubleRange {DoubleRange108,3831
+    double begin;begin109,3852
+    double end;end110,3870
+    bool  begin_inclusive;begin_inclusive111,3886
+    bool  end_inclusive;end_inclusive112,3913
+    DoubleRange(double b, bool binc, double e, bool einc) : begin(b), end(e), begin_inclusive(biDoubleRange113,3938
+class DoubleOption : public OptionDoubleOption121,4189
+    DoubleRange range;range124,4238
+    double      value;value125,4261
+    DoubleOption(const char* c, const char* n, const char* d, double def = double(), DoubleRangeDoubleOption128,4294
+    DoubleOption& operator=(double x)   { value = x; return *this; }operator =135,4732
+    virtual bool parse(const char* str){parse137,4802
+    virtual void help (bool verbose = false){help161,5605
+class IntOption : public OptionIntOption181,6203
+    IntRange range;range184,6249
+    int32_t  value;value185,6269
+    IntOption(const char* c, const char* n, const char* d, int32_t def = int32_t(), IntRange r =IntOption188,6299
+    operator   int32_t   (void) const { return value; }operator int32_t191,6492
+    operator   int32_t&  (void)       { return value; }operator int32_t&192,6548
+    IntOption& operator= (int32_t x)  { value = x; return *this; }operator =193,6604
+    virtual bool parse(const char* str){parse195,6672
+    virtual void help (bool verbose = false){help218,7328
+class Int64Option : public OptionInt64Option243,8045
+    Int64Range range;range246,8093
+    int64_t  value;value247,8115
+    Int64Option(const char* c, const char* n, const char* d, int64_t def = int64_t(), Int64RangeInt64Option250,8145
+    operator     int64_t   (void) const { return value; }operator int64_t253,8344
+    operator     int64_t&  (void)       { return value; }operator int64_t&254,8402
+    Int64Option& operator= (int64_t x)  { value = x; return *this; }operator =255,8460
+    virtual bool parse(const char* str){parse257,8530
+    virtual void help (bool verbose = false){help280,9187
+class StringOption : public OptionStringOption306,9939
+    const char* value;value308,9976
+    StringOption(const char* c, const char* n, const char* d, const char* def = NULL) StringOption310,10008
+    StringOption& operator=    (const char* x)  { value = x; return *this; }operator =315,10281
+    virtual bool parse(const char* str){parse317,10359
+    virtual void help (bool verbose = false){help327,10585
+class BoolOption : public OptionBoolOption341,10954
+    bool value;value343,10989
+    BoolOption(const char* c, const char* n, const char* d, bool v) BoolOption346,11015
+    BoolOption& operator=(bool b)     { value = b; return *this; }operator =351,11246
+    virtual bool parse(const char* str){parse353,11314
+    virtual void help (bool verbose = false){help367,11611
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/System.cc,500
+static inline int memReadStat(int field)memReadStat33,1588
+static inline int memReadPeak(void)memReadPeak51,2007
+double Glucose::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024);memUsed70,2447
+double Glucose::memUsedPeak() { memUsedPeak71,2546
+double Glucose::memUsed(void) {memUsed77,2691
+double MiniSat::memUsedPeak(void) { return memUsed(); }memUsedPeak81,2820
+double Glucose::memUsed(void) {memUsed87,2931
+double Glucose::memUsed() { memUsed93,3089
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/._Options.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/._System.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/ParseUtils.h,1272
+#define Glucose_ParseUtils_hGlucose_ParseUtils_h22,1350
+namespace Glucose {Glucose30,1457
+static const int buffer_size = 1048576;buffer_size35,1624
+class StreamBuffer {StreamBuffer38,1666
+    gzFile        in;in39,1687
+    unsigned char buf[buffer_size];buf40,1709
+    int           pos;pos41,1745
+    int           size;size42,1768
+    void assureLookahead() {assureLookahead44,1793
+    explicit StreamBuffer(gzFile i) : in(i), pos(0), size(0) { assureLookahead(); }StreamBuffer50,1933
+    int  operator *  () const { return (pos >= size) ? EOF : buf[pos]; }operator *52,2018
+    void operator ++ ()       { pos++; assureLookahead(); }operator ++53,2091
+    int  position    () const { return pos; }position54,2151
+static inline bool isEof(StreamBuffer& in) { return *in == EOF;  }isEof62,2367
+static inline bool isEof(const char*   in) { return *in == '\0'; }isEof63,2434
+static void skipWhitespace(B& in) {skipWhitespace70,2690
+static void skipLine(B& in) {skipLine76,2811
+static double parseDouble(B& in) { // only in the form X.XXXXXe-XXparseDouble83,2966
+static int parseInt(B& in) {parseInt112,3849
+static bool match(B& in, const char* str) {match128,4379
+static bool eagerMatch(B& in, const char* str) {eagerMatch141,4674
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/Makefile,61
+EXEC      = system_testEXEC1,0
+DEPDIR    = mtlDEPDIR2,24
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/System.h,313
+#define Glucose_System_hGlucose_System_h22,1346
+namespace Glucose {Glucose32,1556
+static inline double Glucose::cpuTime(void) { return (double)clock() / CLOCKS_PER_SEC; }cpuTime47,2094
+static inline double Glucose::cpuTime(void) {cpuTime54,2259
+static inline double Glucose::realTime() {realTime62,2537
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/._System.cc,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/Options.cc,402
+void Glucose::parseOptions(int& argc, char** argv, bool strict)parseOptions26,1373
+void Glucose::setUsageHelp      (const char* str){ Option::getUsageString() = str; }setUsageHelp57,2508
+void Glucose::setHelpPrefixStr  (const char* str){ Option::getHelpPrefixString() = str; }setHelpPrefixStr58,2593
+void Glucose::printUsageAndExit (int argc, char** argv, bool verbose)printUsageAndExit59,2683
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/._ParseUtils.h,0
+
+/home/zach/school/cmput499/glucose-syrup-4.1/utils/._Options.h,0
