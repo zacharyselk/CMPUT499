@@ -23,10 +23,12 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <assert.h>
 #include <new>
+#include <algorithm>
 
 #include "mtl/IntTypes.h"
 #include "mtl/XAlloc.h"
 #include<string.h>
+#include <iostream>
 
 namespace Glucose {
 
@@ -36,7 +38,7 @@ namespace Glucose {
 // NOTE! Don't use this vector on datatypes that cannot be re-located in memory (with realloc)
 
 template<class T>
-class vec {
+class vec {    
     T*  data;
     int sz;
     int cap;
@@ -60,6 +62,9 @@ public:
     // Pointer to first element:
     operator T*       (void)           { return data; }
 
+  void sort () { std::sort(data, data+(sz/sizeof(data[0]))); }
+  void print() { for(int i = 0; i < sz/sizeof(data[0]); ++i) std::cout << data[i] << '\n'; }
+  
     // Size operations:
     int      size     (void) const     { return sz; }
     void     shrink   (int nelems)     { assert(nelems <= sz); for (int i = 0; i < nelems; i++) sz--, data[sz].~T(); }

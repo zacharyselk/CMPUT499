@@ -21,7 +21,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Glucose_Heap_h
 #define Glucose_Heap_h
 
+#include <algorithm>
 #include "mtl/Vec.h"
+#include <iostream>
 
 namespace Glucose {
 
@@ -80,6 +82,8 @@ class Heap {
     bool empty     ()          const { return heap.size() == 0; }
     bool inHeap    (int n)     const { return n < indices.size() && indices[n] >= 0; }
     int  operator[](int index) const { assert(index < heap.size()); return heap[index]; }
+
+    void sort() {  /*std::cout << "HELLO2\n"; heap.print(); std::cout <<"\n\n"; indices.print();*/ heap.sort(); for(int i = 0; i < heap.size(); ++i) indices[heap[i]] = i; }
 
 
     void decrease  (int n) { assert(inHeap(n)); percolateUp  (indices[n]); }

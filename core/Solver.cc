@@ -48,6 +48,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
  **************************************************************************************************/
 
 #include <math.h>
+#include <algorithm>
 
 #include "utils/System.h"
 #include "mtl/Sort.h"
@@ -676,6 +677,15 @@ void Solver::cancelUntil(int level) {
 // Major methods:
 
 Lit Solver::pickBranchLit() {
+  if(trail.size() == 0)
+    {
+      //printf("\n\n\nHELLO!!!!!\n\n\n");
+      //if(stats[nbstopsrestarts] > starts || start == 0)
+      //{
+      order_heap.sort();
+       //}
+    }
+
     Var next = var_Undef;
 
     // Random decision:
@@ -1645,7 +1655,7 @@ lbool Solver::search(int nof_conflicts) {
                 decisions++;
                 next = pickBranchLit();
                 if(next == lit_Undef) {
-                    printf("c last restart ## conflicts  :  %d %d \n", conflictC, decisionLevel());
+                  //printf("c last restart ## conflicts  :  %d %d \n", conflictC, decisionLevel());
                     // Model found:
                     return l_True;
                 }

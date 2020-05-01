@@ -52,7 +52,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <signal.h>
 #include <zlib.h>
 #include <sys/resource.h>
-#include <iostream>
 
 #include "utils/System.h"
 #include "utils/ParseUtils.h"
@@ -70,26 +69,27 @@ void printStats(Solver& solver)
 {
     double cpu_time = cpuTime();
     double mem_used = 0;//memUsedPeak();
-    printf("c restarts              : %" PRIu64" (%" PRIu64" conflicts in avg)\n", solver.starts,(solver.starts>0 ?solver.conflicts/solver.starts : 0));
-    printf("c blocked restarts      : %" PRIu64" (multiple: %" PRIu64") \n", solver.stats[nbstopsrestarts],solver.stats[nbstopsrestartssame]);
-    printf("c last block at restart : %" PRIu64"\n",solver.stats[lastblockatrestart]);
-    printf("c nb ReduceDB           : %" PRIu64"\n", solver.stats[nbReduceDB]);
-    printf("c nb removed Clauses    : %" PRIu64"\n",solver.stats[nbRemovedClauses]);
-    printf("c nb learnts DL2        : %" PRIu64"\n", solver.stats[nbDL2]);
-    printf("c nb learnts size 2     : %" PRIu64"\n", solver.stats[nbBin]);
-    printf("c nb learnts size 1     : %" PRIu64"\n", solver.stats[nbUn]);
-    if(solver.chanseokStrategy)
-        printf("c nb permanent learnts  : %" PRIu64"\n", solver.stats[nbPermanentLearnts]);
+    // printf("c restarts              : %" PRIu64" (%" PRIu64" conflicts in avg)\n", solver.starts,(solver.starts>0 ?solver.conflicts/solver.starts : 0));
+    // printf("c blocked restarts      : %" PRIu64" (multiple: %" PRIu64") \n", solver.stats[nbstopsrestarts],solver.stats[nbstopsrestartssame]);
+    // printf("c last block at restart : %" PRIu64"\n",solver.stats[lastblockatrestart]);
+    // printf("c nb ReduceDB           : %" PRIu64"\n", solver.stats[nbReduceDB]);
+    // printf("c nb removed Clauses    : %" PRIu64"\n",solver.stats[nbRemovedClauses]);
+    // printf("c nb learnts DL2        : %" PRIu64"\n", solver.stats[nbDL2]);
+    // printf("c nb learnts size 2     : %" PRIu64"\n", solver.stats[nbBin]);
+    // printf("c nb learnts size 1     : %" PRIu64"\n", solver.stats[nbUn]);
+    // if(solver.chanseokStrategy)
+    //     printf("c nb permanent learnts  : %" PRIu64"\n", solver.stats[nbPermanentLearnts]);
 
     printf("c conflicts             : %-12" PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
-    printf("c decisions             : %-12" PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.stats[rnd_decisions]*100 / (float)solver.decisions, solver.decisions   /cpu_time);
-    printf("c propagations          : %-12" PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
-    //    printf("c conflict literals     : %-12" PRIu64"   (%4.2f %% deleted)\n", solver.stats[tot_literals], (solver.stats[max_literals] - solver.stats[tot_literals])*100 / (double)solver.stats[max_literals]);
-    //    printf("c Average resolutions   : %-12" PRIu64"   (%.0f seen ones)\n",solver.stats[sumRes]/solver.conflicts,((double)solver.stats[sumResSeen])/solver.conflicts);
-    printf("c nb reduced Clauses    : %" PRIu64"\n",solver.stats[nbReducedClauses]);
+    // printf("c decisions             : %-12" PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.stats[rnd_decisions]*100 / (float)solver.decisions, solver.decisions   /cpu_time);
+    // printf("c propagations          : %-12" PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
+    // //    printf("c conflict literals     : %-12" PRIu64"   (%4.2f %% deleted)\n", solver.stats[tot_literals], (solver.stats[max_literals] - solver.stats[tot_literals])*100 / (double)solver.stats[max_literals]);
+    // //    printf("c Average resolutions   : %-12" PRIu64"   (%.0f seen ones)\n",solver.stats[sumRes]/solver.conflicts,((double)solver.stats[sumResSeen])/solver.conflicts);
+    // printf("c nb reduced Clauses    : %" PRIu64"\n",solver.stats[nbReducedClauses]);
 
-    if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
-    printf("c CPU time              : %g s\n", cpu_time);
+    // if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
+    // printf("c CPU time              : %g s\n", cpu_time);
+    printf("%g\n", cpu_time);
 }
 
 
@@ -103,46 +103,11 @@ static void SIGINT_interrupt(int signum) { solver->interrupt(); }
 // destructors and may cause deadlocks if a malloc/free function happens to be running (these
 // functions are guarded by locks for multithreaded use).
 static void SIGINT_exit(int signum) {
-    printf("\n"); printf("*** INTERRUPTED ***\n");
+  // printf("\n"); printf("*** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
         printStats(*solver);
         printf("\n"); printf("*** INTERRUPTED ***\n"); }
     _exit(1); }
-
-
-void proof(SimpSolver &S) {
-  vec<Lit> assumptions;
-  vec<double> times(2*S.nVars());
-  double start_time, end_time;
-  lbool ret;
-
-  assumptions.push(mkLit(0));
-  for(int i = 0; i < S.nVars(); ++i) {
-    assumptions[0] =  mkLit(i, false);
-    start_time = cpuTime();
-    ret = S.solveLimited(assumptions);
-    end_time = cpuTime();
-
-    times[2*i] = 10000;
-    if(ret == l_True) {
-      times[2*i] = end_time - start_time;
-    }
-
-    assumptions[0] = mkLit(i, true);
-    start_time = cpuTime();
-    ret = S.solveLimited(assumptions);
-    end_time = cpuTime();
-
-    times[2*i+1] = 10000;
-    if(ret == l_True) {
-      times[2*i+1] = end_time - start_time;
-    }
-  }
-
-  for(int i = 0; i < times.size(); ++i) {
-    std::cerr << times[i] << "\n";
-  }
-}
 
 
 //=================================================================================================
@@ -151,7 +116,7 @@ void proof(SimpSolver &S) {
 int main(int argc, char** argv)
 {
     try {
-      printf("c\nc This is glucose 4.0 --  based on MiniSAT (Many thanks to MiniSAT team)\nc\n");
+      // printf("c\nc This is glucose 4.0 --  based on MiniSAT (Many thanks to MiniSAT team)\nc\n");
 
 
       setUsageHelp("c USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
@@ -265,14 +230,14 @@ int main(int argc, char** argv)
 
         S.parsing = 0;
         if(pre/* && !S.isIncremental()*/) {
-	  printf("c | Preprocesing is fully done\n");
+          // printf("c | Preprocesing is fully done\n");
 	  S.eliminate(true);
         double simplified_time = cpuTime();
         if (S.verbosity > 0){
             printf("c |  Simplification time:  %12.2f s                                                                 |\n", simplified_time - parsed_time);
  }
 	}
-	printf("c |                                                                                                       |\n");
+        //printf("c |                                                                                                       |\n");
         if (!S.okay()){
             if (S.certifiedUNSAT) fprintf(S.certifiedOutput, "0\n"), fclose(S.certifiedOutput);
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
@@ -281,7 +246,7 @@ int main(int argc, char** argv)
                printf("Solved by simplification\n");
                 printStats(S);
                 printf("\n"); }
-            printf("s UNSATISFIABLE\n");
+            // printf("s UNSATISFIABLE\n");
             exit(20);
         }
 
@@ -293,19 +258,17 @@ int main(int argc, char** argv)
                 printStats(S);
             exit(0);
         }
-        proof(S);
 
-        //printf("Before\n");
-        //S.printAssumptions();
         vec<Lit> dummy;
         lbool ret = S.solveLimited(dummy);
-        //printf("After\n");
-        S.printAssumptions();
+
         if (S.verbosity > 0){
             printStats(S);
             printf("\n"); }
-        printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s INDETERMINATE\n");
-
+        printStats(S);
+        //printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s INDETERMINATE\n");
+	printf(ret == l_True ? "c 1\n" : "c 0\n");
+	
         if (res != NULL){
             if (ret == l_True){
                 printf("SAT\n");
